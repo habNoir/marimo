@@ -1,0 +1,14 @@
+{
+  "botName": "Marimo",
+  "ownerName": "habNoir",
+  "botVersion": "1.0",
+  "ownerNumbers": [
+    "628138174768"
+  ],
+  "channelID": "120363429995207955@newsletter",
+  "prefix": {
+    "multi": false,
+    "single": "!",
+    "list": ["!", ".", "/", "#", "?"]
+  }
+}
