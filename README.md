@@ -17,68 +17,82 @@
 
 </div>
 
-## Ringkasan
+## Overview
 
-Marimo adalah bot WhatsApp Multi-Device yang ringan dan berperforma tinggi, dibangun dari dasar menggunakan `@rexxhayanasi/elaina-baileys`. Dirancang khusus untuk pengiriman pesan dengan latensi rendah, manajemen siklus hidup koneksi yang stabil, pembongkaran envelope protokol secara mendalam, serta arsitektur plugin modular yang dinamis.
+Marimo is a lightweight, high-performance WhatsApp Multi-Device bot built on top of [`elaina-baileys`](https://github.com/rexxzyid/elaina-baileys). It focuses on low-latency message dispatch, resilient socket lifecycle management, deep protocol envelope unwrapping, and a dynamic modular plugin architecture.
 
-## Keunggulan Arsitektur
+## Key Features
 
-| Fitur | Deskripsi Teknis |
+| Feature | Technical Description |
 |---|---|
-| Gateway Koneksi Ganda | Mendukung kode pairing 8 karakter dengan validasi nomor internasional dan tampilan QR code di terminal. |
-| Relay Media Tanpa Jeda | Menggunakan `prepareWAMessageMedia` dan `relayMessage` untuk menyimpan token CDN yang diunggah di memori (RAM), menghilangkan proses unggah ulang (respons di bawah 100ms). |
-| Pemeriksa View Once Mendalam | Membongkar hingga 10 lapisan container bersarang (`ephemeralMessage`, `viewOnceMessageV2`, dan lainnya) untuk mendeteksi media sekali lihat secara akurat. |
-| Transcoding PTT yang Ketat | Meng-encode audio melalui FFmpeg ke format 48kHz Mono Libopus dengan penghapusan metadata penuh (`-map_metadata -1`) agar waveform dan pemutaran tetap sinkron. |
-| Caching Kunci Sinyal di Memori | Membungkus penyimpanan kunci autentikasi menggunakan `makeCacheableSignalKeyStore` untuk meminimalkan operasi baca-tulis disk saat proses dekripsi ratchet E2EE. |
-| Penangkap Error Terpusat | Manajemen kesalahan global yang menangkap exception tak tertangani dan error plugin, lengkap dengan stack trace di terminal dan notifikasi otomatis ke chat. |
-| Plugin Subfolder Dinamis | Menemukan dan memuat modul command secara dinamis dari subdirektori di dalam `./plugins/`. |
-| Mesin Prefix Berbasis Konfigurasi | Mendukung pergantian instan antara mode prefix tunggal dan array multi-prefix langsung melalui `config.json`. |
+| Dual Connection Gateway | Supports 8-character pairing codes with international number validation, plus a terminal-rendered QR code for linking. |
+| Zero-Delay Media Relay | Uses `prepareWAMessageMedia` and `relayMessage` to cache uploaded CDN tokens in RAM, avoiding repeated re-uploads for menu media (video and voice note). |
+| Deep View-Once Inspector | Recursively unwraps nested message containers (`ephemeralMessage`, `viewOnceMessage`, `viewOnceMessageV2`, `viewOnceMessageV2Extension`, and more) up to 10 levels deep to reliably detect view-once media. |
+| PTT / Audio Utilities | Ships with FFmpeg-based helpers to transcode audio to 48kHz Mono Opus (via `convertToOpus`) and to read accurate audio duration for playback metadata. |
+| Signal Key In-Memory Caching | Wraps the authentication key store with `makeCacheableSignalKeyStore` to minimize disk I/O during E2EE ratchet decryption. |
+| Auto-Reconnect Socket Core | Automatically reconnects on unexpected disconnects, detects the initial "restart required" handshake, and cleanly purges the session folder on logout. |
+| Centralized Error Trap | Captures uncaught exceptions and unhandled promise rejections globally, and reports plugin execution errors back to the chat with a readable stack trace. |
+| Dynamic Subfolder Plugins | Recursively discovers and mounts command modules from any subdirectory inside `./plugins/`, using the immediate subfolder name as the command category. |
+| Config-Driven Prefix Engine | Switches instantly between single-prefix mode and multi-prefix array mode via `config.json`, no code changes required. |
+| Group-Aware Permissions | Resolves group metadata (with a 5-minute in-memory cache) to determine sender and bot admin status for permission-gated commands. |
 
-## Struktur Direktori
+## Directory Structure
 
 ```
 marimo/
-├── config.json              # Konfigurasi global bot & aturan prefix
-├── package.json             # Daftar dependencies dan deklarasi modul ESM
-├── hab.js                   # Gateway utama, kontrol socket & mesin startup
-├── handler.js                # Dispatcher pesan, pengecekan izin & parser command
-├── myfunction.js             # Utilitas inti, info sistem & konverter media
+├── config.json               # Global bot configuration & prefix rules
+├── package.json               # Dependencies and ESM module declaration
+├── hab.js                     # Main gateway, socket controller & startup engine
+├── handler.js                 # Message dispatcher, permission checks & command parser
 ├── media/
-│   ├── menu_gif.mp4          # Aset video GIF utama
-│   └── menu_voice.ogg        # Aset suara 48kHz Mono Opus utama
+│   ├── menu_gif.mp4           # Menu video asset (sent as a GIF-style video)
+│   └── menu_voice.ogg         # Menu voice note asset (48kHz Mono Opus)
 ├── utils/
-│   ├── logger.js              # Pelapor status Unicode & pemeriksa event
-│   └── errorHandler.js        # Interceptor eksekusi terpusat & pencegah crash
+│   ├── logger.js               # Unicode status reporter & event/command inspector
+│   ├── errorHandler.js         # Centralized execution interceptor & crash barrier
+│   └── myfunction.js           # Core helpers: config loader, system info, media utilities
 └── plugins/
     └── general/
-        ├── ping.js            # Utilitas benchmark ping
-        └── menu.js            # Menu kategori interaktif dan dinamis
+        └── menu.js             # Interactive, categorized bot menu
 ```
 
-## Prasyarat
+> The plugin loader mounts **any** `.js` file placed inside a subfolder of `./plugins/`, so this structure will grow as more command modules are added.
 
-- **Node.js**: versi 20.0.0 atau lebih baru (disarankan Node.js 22+)
-- **FFmpeg**: ditangani otomatis melalui `ffmpeg-static` (atau binary yang sudah terpasang di sistem)
+## Prerequisites
+
+- **Node.js**: v20.0.0 or newer (Node.js 22+ recommended)
+- **FFmpeg**: handled automatically through `ffmpeg-static`, or a system-installed binary can be used instead
 - **Git**
 
-## Instalasi
+## Installation
 
-**1. Clone Repository**
+**1. Clone the repository**
 
 ```bash
 git clone https://github.com/habNoir/marimo.git
 cd marimo
 ```
 
-**2. Install Dependencies**
+**2. Install dependencies**
 
 ```bash
 npm install
 ```
 
-**3. Konfigurasi Environment**
+Core dependencies used by the project:
 
-Sesuaikan `config.json` dengan kebutuhan deployment kamu:
+| Package | Purpose |
+|---|---|
+| [`elaina-baileys`](https://github.com/rexxzyid/elaina-baileys) | WhatsApp Multi-Device socket engine (the core connection library) |
+| `ffmpeg-static` | Bundled FFmpeg binary for audio/video processing |
+| `fluent-ffmpeg` | Fluent wrapper for FFmpeg operations |
+| `pino` | Structured logger used internally by the socket engine |
+| `qrcode-terminal` | Renders the WhatsApp linking QR code in the terminal |
+| `sharp` | Image processing utility |
+
+**3. Configure the bot**
+
+Edit `config.json` to match your deployment:
 
 ```json
 {
@@ -90,29 +104,50 @@ Sesuaikan `config.json` dengan kebutuhan deployment kamu:
   ],
   "channelID": "120363429995207955@newsletter",
   "prefix": {
-    "multi": true,
+    "multi": false,
     "single": "!",
     "list": ["!", ".", "/", "#", "?"]
   }
 }
 ```
 
-## Menjalankan Bot
+| Field | Description |
+|---|---|
+| `botName` | Display name shown in the menu and logs |
+| `ownerName` | Owner display name |
+| `botVersion` | Version string shown in the menu |
+| `ownerNumbers` | Array of phone numbers (digits only, with country code) granted owner-level access |
+| `channelID` | WhatsApp Channel/Newsletter JID used for forwarded-message attribution in the menu |
+| `prefix.multi` | `true` enables multiple prefixes from `prefix.list`; `false` uses only `prefix.single` |
+| `prefix.single` | The single command prefix used when `multi` is `false` |
+| `prefix.list` | Array of accepted prefixes used when `multi` is `true` |
 
-Jalankan mesin utama:
+## Running the Bot
+
+Start the core engine:
 
 ```bash
 node hab.js
 ```
 
-Saat pertama kali dijalankan tanpa sesi aktif, pilih salah satu:
+On the first run without an active session, choose an authentication method:
 
-1. **Pairing Code** — masukkan nomor telepon tanpa tanda `+` dan angka `0` di depan
-2. **QR Code** — pindai melalui menu Perangkat Tertaut di aplikasi WhatsApp
+1. **Pairing Code** — enter your phone number in international format, without a leading `+` or `0` (e.g. `628123456789`)
+2. **QR Code** — scan the code shown in the terminal from **WhatsApp → Linked Devices → Link a Device**
 
-## Spesifikasi Plugin
+If the connection drops unexpectedly, the bot reconnects automatically. If the session is revoked or logged out from the device, the local session folder is purged and the bot exits, so it can be re-authenticated on the next start.
 
-Plugin berupa modul ES yang ditempatkan di dalam `./plugins/<kategori>/<namafile>.js`. Handler akan otomatis memetakan kategori berdasarkan nama subfolder.
+## Available Commands
+
+| Command | Category | Description |
+|---|---|---|
+| `menu` / `help` | general | Shows the interactive bot menu (bot info, system info, and category list), together with the menu video and voice note. Use `menu <category>` to list commands within a specific category. |
+
+> This project currently ships with a single built-in plugin (`menu`). There is no `ping` command included by default — add one yourself under `./plugins/<category>/` if needed, following the plugin specification below.
+
+## Plugin Specification
+
+Plugins are ES modules placed inside `./plugins/<category>/<filename>.js`. The handler automatically maps each plugin's category from its immediate subfolder name.
 
 ```javascript
 const handler = async (m, { conn, args, usedPrefix, command }) => {
@@ -123,38 +158,49 @@ handler.help = ['example']
 handler.tags = ['general']
 handler.command = ['example', 'test']
 
-// Guard Izin (opsional):
-// handler.owner = true      // Hanya untuk owner bot yang terdaftar
-// handler.group = true      // Hanya berlaku di dalam grup
-// handler.private = true    // Hanya berlaku di chat pribadi
-// handler.admin = true      // Pengirim harus admin grup
-// handler.botAdmin = true   // Bot harus memiliki hak admin grup
+// Optional permission guards:
+// handler.owner = true      // Restricted to configured bot owners
+// handler.group = true      // Restricted to group contexts
+// handler.private = true    // Restricted to private direct messages
+// handler.admin = true      // Requires the sender to be a group admin
+// handler.botAdmin = true   // Requires the bot to hold group admin privileges
 
 export default handler
 ```
 
-## Standar Logging Terminal
+`command` may be a string, an array of strings, or a `RegExp` (or an array mixing strings and `RegExp`). The first plugin whose `command` matches the parsed input is executed.
 
-Terminal menggunakan format Unicode khusus dengan indikator berikut:
+## Terminal Logging Standard
 
-| Simbol | Arti | Keterangan |
+The terminal uses a dedicated Unicode-based format with the following indicators:
+
+| Symbol | Meaning | Description |
 |---|---|---|
-| `[+]` | Success | Operasi dan koneksi berhasil |
-| `[-]` | Failed | Error dan exception yang tertangkap |
-| `[!]` | Warning | Peringatan, rate-limit, atau penolakan izin |
-| `[*]` | Info | Notifikasi operasional umum |
-| `[~]` | Process | Tugas latar belakang dan proses handshake kriptografi |
-| `[>]` | Running | Status dispatch dan eksekusi command |
+| `[+]` | Success | Successful operations and connections |
+| `[-]` | Failed | Errors and caught execution exceptions |
+| `[!]` | Warning | Warnings, rate-limits, or permission rejections |
+| `[*]` | Info | General operational notices |
+| `[~]` | Process | Background tasks and cryptographic handshakes |
+| `[>]` | Running | Command dispatch and execution states |
 
-## Lisensi
+## Acknowledgements
 
-Proyek ini dilisensikan di bawah **MIT License**.
+- **Allah SWT**, for making the development of this project possible
+- **My parents**, for their endless support and prayers
+- **AI**, for assisting with development and documentation
+- **[elaina-baileys](https://github.com/rexxzyid/elaina-baileys)**, the library this project is built on
+- **My friends**, for their support, ideas, and encouragement
+- **Everyone else** who contributed, directly or indirectly, to this project
+
+## License
+
+This project is licensed under the **MIT License**.
 
 <div align="center">
 
 ─────────────────────────────────────────────────────────────
 
-*Dikembangkan oleh habNoir — dibangun untuk kecepatan dan keandalan.*
+*Developed by habNoir — built for speed and reliability.*
 
 ─────────────────────────────────────────────────────────────
 
