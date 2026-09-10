@@ -38,7 +38,7 @@ export const logger = {
   banner: () => {
     console.clear()
     console.log(`${c.gray}┌─────────────────────────────────────────────────────────────┐${c.reset}`)
-    console.log(`${c.gray}│${c.reset}  ${c.bold}${c.white}◈ habNoir${c.reset} ${c.dim}v.1.0${c.reset}                                          ${c.gray}│${c.reset}`)
+    console.log(`${c.gray}│${c.reset}  ${c.bold}${c.white}◈ habNoir${c.reset} ${c.dim}v1.5${c.reset}                                          ${c.gray}│${c.reset}`)
     console.log(`${c.gray}│${c.reset}  ${c.cyan}✦ WhatsApp Multi-Device Autonomous Core Engine${c.reset}             ${c.gray}│${c.reset}`)
     console.log(`${c.gray}│${c.reset}  ${c.dim}Built on Elaina-Baileys Modernized Socket Architecture${c.reset}     ${c.gray}│${c.reset}`)
     console.log(`${c.gray}└─────────────────────────────────────────────────────────────┘${c.reset}\n`)
@@ -59,7 +59,7 @@ export const logger = {
   connected: (botJid) => {
     console.log(`\n${c.gray}┌─────────────────────────────────────────────────────────────┐${c.reset}`)
     console.log(`${c.gray}│${c.reset}  ${c.bold}${c.green}[+]  STATUS : CONNECTED${c.reset}                                    ${c.gray}│${c.reset}`)
-    console.log(`${c.gray}│${c.reset}  Client : ${c.white}habNoir v.1.0${c.reset}                                        ${c.gray}│${c.reset}`)
+    console.log(`${c.gray}│${c.reset}  Client : ${c.white}habNoir v1.5${c.reset}                                        ${c.gray}│${c.reset}`)
     console.log(`${c.gray}│${c.reset}  ID     : ${c.cyan}${botJid}${c.reset}${' '.repeat(Math.max(0, 50 - botJid.length))} ${c.gray}│${c.reset}`)
     console.log(`${c.gray}│${c.reset}  Core   : ${c.dim}Socket active & dispatching event payloads${c.reset}          ${c.gray}│${c.reset}`)
     console.log(`${c.gray}└─────────────────────────────────────────────────────────────┘${c.reset}\n`)

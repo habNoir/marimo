@@ -26,7 +26,7 @@ export function getConfig() {
     return JSON.parse(fs.readFileSync('./config.json', 'utf8'))
   } catch {
     return {
-      botName: 'habNoir v.1.0',
+      botName: 'habNoir',
       ownerNumbers: [],
       prefix: { multi: true, single: '!', list: ['!', '.', '/', '#'] }
     }
@@ -61,7 +61,7 @@ function getBaileysPkgInfo() {
     const pkgPath = './node_modules/@rexxhayanasi/elaina-baileys/package.json'
     if (fs.existsSync(pkgPath)) {
       const data = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
-      cachedBaileysPkg = { name: data.name || 'elaina-baileys', version: data.version || '1.0.0' }
+      cachedBaileysPkg = { name: data.name || 'elaina-baileys', version: data.version }
       return cachedBaileysPkg
     }
   } catch {}
