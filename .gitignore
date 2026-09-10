@@ -3,3 +3,7 @@ session/
 package-lock.json
 *.db
 session.json
+database/
+*.db
+*.db-shm
+*.db-wal

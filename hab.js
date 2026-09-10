@@ -13,7 +13,6 @@ console.log = (...args) => {
 }
 
 import makeWASocket, {
-  useMultiFileAuthState,
   makeCacheableSignalKeyStore,
   DisconnectReason,
   jidNormalizedUser
@@ -26,13 +25,12 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import qrcode from 'qrcode-terminal'
 import logger from './utils/logger.js'
+import store from './utils/store.js'
 import { initGlobalErrorTrap } from './utils/errorHandler.js'
 import { handleMessages } from './handler.js'
 
-// ─── MOUNT GLOBAL PROCESS ERROR INTERCEPTOR ───────────────────────────────────
 initGlobalErrorTrap()
 
-const SESSION_DIR = './session'
 const PLUGINS_DIR = './plugins'
 const plugins = new Map()
 
@@ -63,7 +61,6 @@ async function loadPlugins(dir = PLUGINS_DIR) {
   }
 }
 
-// ─── CLI PROMPT ───────────────────────────────────────────────────────────────
 async function promptInput(questionText) {
   const rl = readline.createInterface({ input, output })
   try {
@@ -75,8 +72,8 @@ async function promptInput(questionText) {
 
 let pairingCodeRequested = false
 
-// ─── SOCKET CORE ──────────────────────────────────────────────────────────────
-async function connectToWhatsApp(state, saveCreds, authMethod, phoneNumber) {
+// ─── SOCKET CORE POWERED BY SQLITE STORE ───────────────────────────────────────
+async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneNumber) {
   const pinoLogger = pino({ level: 'silent' })
 
   const sock = makeWASocket({
@@ -88,16 +85,22 @@ async function connectToWhatsApp(state, saveCreds, authMethod, phoneNumber) {
     browser: ['Mac OS', 'Chrome', '14.4.1'],
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: false,
-
-    // ─── SETTING KONEKSI RINGAN & BUKA AKSES SALURAN ────────────────────────
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false,
-    shouldIgnoreJid: (jid) => jid === 'status@broadcast', // Saluran (@newsletter) diizinkan
+    shouldIgnoreJid: (jid) => jid === 'status@broadcast',
     fireInitQueries: false,
-    maxRetryQueueSize: 32
+    maxRetryQueueSize: 32,
+
+    // Hubungkan getMessage ke database SQLite untuk retry decrypt otomatis
+    getMessage: async (key) => await store.loadMessage(key.remoteJid, key.id),
+    cachedGroupMetadata: async (jid) => store.getGroupMetadata(jid)
   })
 
+  // Simpan kredensial ke SQLite
   sock.ev.on('creds.update', saveCreds)
+
+  // Ikat seluruh event WhatsApp (Kontak, LID, Pesan, Grup) ke database SQLite
+  store.bind(sock.ev)
 
   if (!state.creds.registered && authMethod === '1' && !pairingCodeRequested) {
     pairingCodeRequested = true
@@ -146,18 +149,24 @@ async function connectToWhatsApp(state, saveCreds, authMethod, phoneNumber) {
 
       if (!isLoggedOut) {
         setTimeout(async () => {
-          const freshAuth = await useMultiFileAuthState(SESSION_DIR)
-          connectToWhatsApp(freshAuth.state, freshAuth.saveCreds, authMethod, phoneNumber)
+          const freshAuth = await store.getAuthState()
+          connectToWhatsApp(
+            freshAuth.state,
+            freshAuth.saveCreds,
+            freshAuth.clearAuth,
+            authMethod,
+            phoneNumber
+          )
         }, 1500)
       } else {
         logger.failed('Session revoked or logged out from device.')
-        logger.info(`Purging storage directory '${SESSION_DIR}'...`)
+        logger.info('Purging SQLite session credentials...')
 
         try {
-          fs.rmSync(SESSION_DIR, { recursive: true, force: true })
-          logger.success('Session cleared. Restart application to authenticate again.')
+          if (clearAuth) await clearAuth()
+          logger.success('Database session cleared. Restart application to authenticate again.')
         } catch {
-          logger.warn(`Please remove the '${SESSION_DIR}' folder manually.`)
+          logger.warn('Please clear the session table manually.')
         }
         process.exit(0)
       }
@@ -185,7 +194,8 @@ async function main() {
   await loadPlugins()
   logger.success(`Plugin subsystem loaded. Total: ${plugins.size} plugins active.\n`)
 
-  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
+  // Ambil state autentikasi langsung dari database SQLite
+  const { state, saveCreds, clearAuth } = await store.getAuthState()
   let authMethod = null
   let phoneNumber = ''
 
@@ -217,7 +227,7 @@ async function main() {
     }
   }
 
-  await connectToWhatsApp(state, saveCreds, authMethod, phoneNumber)
+  await connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneNumber)
 }
 
 process.on('SIGINT', () => {

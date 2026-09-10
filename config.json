@@ -5,6 +5,10 @@
   "ownerNumbers": [
     "628138174768"
   ],
+  "stickerData": {
+    "packname": "Marimo",
+    "author": "habNoir"
+  },
   "channelID": "120363429995207955@newsletter",
   "prefix": {
     "multi": false,

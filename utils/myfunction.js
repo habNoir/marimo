@@ -69,6 +69,58 @@ function getBaileysPkgInfo() {
   return cachedBaileysPkg
 }
 
+import { downloadContentFromMessage } from '@rexxhayanasi/elaina-baileys'
+
+/**
+ * Downloads media buffer from message node (handles both raw node and parent wrappers)
+ */
+export async function downloadMedia(msgNode, mediaType = 'image') {
+  if (!msgNode) throw new Error('No media node provided')
+
+  // Ekstrak node media terdalam jika masih terbungkus objek parent
+  let target = msgNode
+  let cleanType = mediaType.replace('Message', '')
+
+  if (target.imageMessage) {
+    target = target.imageMessage
+    cleanType = 'image'
+  } else if (target.videoMessage) {
+    target = target.videoMessage
+    cleanType = 'video'
+  } else if (target.stickerMessage) {
+    target = target.stickerMessage
+    cleanType = 'sticker'
+  } else if (target.audioMessage) {
+    target = target.audioMessage
+    cleanType = 'audio'
+  } else if (target.documentMessage) {
+    target = target.documentMessage
+    cleanType = 'document'
+  }
+
+  // Validasi keberadaan directPath / url
+  if (!target.directPath && !target.url) {
+    throw new Error('No valid directPath or media URL found in target media node')
+  }
+
+  const stream = await downloadContentFromMessage(target, cleanType)
+  let buffer = Buffer.from([])
+  for await (const chunk of stream) {
+    buffer = Buffer.concat([buffer, chunk])
+  }
+  return buffer
+}
+
+export async function fetchBuffer(url, options = {}) {
+  const res = await fetch(url, options)
+  if (!res.ok) {
+    throw new Error(`Fetch gagal: ${res.status} ${res.statusText}`)
+  }
+
+  const arrayBuffer = await res.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}
+
 export function getSystemInfo() {
   const totalMem = os.totalmem()
   const freeMem = os.freemem()
@@ -307,5 +359,7 @@ export default {
   formatSize,
   convertToOpus,
   getAudioDuration,
-  convertToGifVideo
+  convertToGifVideo,
+  downloadMedia,
+  fetchBuffer
 }
