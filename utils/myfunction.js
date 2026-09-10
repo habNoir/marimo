@@ -341,6 +341,19 @@ export function smsg(sock, m) {
     m.quoted = null
   }
 
+  m.react = async (text) => {
+    try {
+      return await sock.sendMessage(m.chat, {
+        react: {
+          text: text || '',
+          key: m.key
+        }
+      })
+    } catch {
+      return null
+    }
+  }
+
   m.reply = async (text, options = {}) => {
     return await sock.sendMessage(m.chat, { text, ...options }, { quoted: m })
   }
