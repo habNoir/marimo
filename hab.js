@@ -28,6 +28,13 @@ import logger from './utils/logger.js'
 import store from './utils/store.js'
 import { initGlobalErrorTrap } from './utils/errorHandler.js'
 import { handleMessages } from './handler.js'
+import ffmpeg from 'fluent-ffmpeg'
+import ffmpegPath from 'ffmpeg-static'
+
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath)
+  process.env.FFMPEG_PATH = ffmpegPath
+}
 
 initGlobalErrorTrap()
 
