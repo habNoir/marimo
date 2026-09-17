@@ -1,7 +1,33 @@
 import { jidNormalizedUser } from '@rexxhayanasi/elaina-baileys'
 import logger from './utils/logger.js'
 import { executePlugin } from './utils/errorHandler.js'
-import { smsg, getConfig } from './utils/myfunction.js'
+import { smsg, getConfig, downloadMedia, cacheViewOnce } from './utils/myfunction.js'
+
+const VIEWONCE_MEDIA_TYPES = ['imageMessage', 'videoMessage', 'audioMessage']
+
+// ─── CACHE VIEW-ONCE MEDIA ON ARRIVAL ─────────────────────────────────────────
+// WA menghapus akses ke media view-once begitu dibuka penerima, jadi kita
+// unduh & simpan buffernya di memori saat pesan baru masuk.
+async function cacheIncomingViewOnce(m) {
+  const type = m.type
+  if (!VIEWONCE_MEDIA_TYPES.includes(type)) return
+
+  try {
+    const mediaType = type.replace('Message', '')
+    const buffer = await downloadMedia(m.msg, mediaType)
+
+    cacheViewOnce(m.key.id, {
+      buffer,
+      mediaType,
+      mimetype: m.msg?.[type]?.mimetype,
+      caption: m.msg?.[type]?.caption || '',
+      sender: m.sender,
+      chat: m.chat
+    })
+  } catch (err) {
+    logger.error('ViewOnce Cache Failure', err)
+  }
+}
 
 const groupCache = new Map()
 
@@ -13,6 +39,10 @@ export async function handleMessages(sock, rawM, plugins) {
 
   const m = smsg(sock, rawM)
   const config = getConfig()
+
+  if (m.isViewOnce && !m.isFromMe) {
+    await cacheIncomingViewOnce(m)
+  }
 
   let groupMetadata = null
   let isAdmin = false

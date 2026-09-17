@@ -28,6 +28,7 @@ import logger from './utils/logger.js'
 import store from './utils/store.js'
 import { initGlobalErrorTrap } from './utils/errorHandler.js'
 import { handleMessages } from './handler.js'
+import { pruneViewOnceCache } from './utils/myfunction.js'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegPath from 'ffmpeg-static'
 
@@ -200,6 +201,9 @@ async function main() {
   logger.process('Mounting system plugins from ./plugins/**...')
   await loadPlugins()
   logger.success(`Plugin subsystem loaded. Total: ${plugins.size} plugins active.\n`)
+
+  // Bersihkan cache media view-once yang sudah kedaluwarsa setiap 15 menit
+  setInterval(pruneViewOnceCache, 15 * 60 * 1000)
 
   // Ambil state autentikasi langsung dari database SQLite
   const { state, saveCreds, clearAuth } = await store.getAuthState()

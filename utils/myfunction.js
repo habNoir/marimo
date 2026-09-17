@@ -111,6 +111,35 @@ export async function downloadMedia(msgNode, mediaType = 'image') {
   return buffer
 }
 
+// ─── VIEW-ONCE MEDIA CACHE ────────────────────────────────────────────────────
+// Menyimpan buffer media view-once sesaat setelah diterima, supaya masih bisa
+// diambil lewat command meskipun pesan aslinya sudah "dibuka"/dihapus di WA.
+const viewOnceCache = new Map()
+const VIEWONCE_TTL = 60 * 60 * 1000 // 1 jam
+
+export function cacheViewOnce(id, payload) {
+  if (!id) return
+  viewOnceCache.set(id, { ...payload, cachedAt: Date.now() })
+}
+
+export function getViewOnceCache(id) {
+  if (!id) return null
+  const entry = viewOnceCache.get(id)
+  if (!entry) return null
+  if (Date.now() - entry.cachedAt > VIEWONCE_TTL) {
+    viewOnceCache.delete(id)
+    return null
+  }
+  return entry
+}
+
+export function pruneViewOnceCache() {
+  const now = Date.now()
+  for (const [id, entry] of viewOnceCache.entries()) {
+    if (now - entry.cachedAt > VIEWONCE_TTL) viewOnceCache.delete(id)
+  }
+}
+
 export async function fetchBuffer(url, options = {}) {
   const res = await fetch(url, options)
   if (!res.ok) {
@@ -374,5 +403,8 @@ export default {
   getAudioDuration,
   convertToGifVideo,
   downloadMedia,
-  fetchBuffer
+  fetchBuffer,
+  cacheViewOnce,
+  getViewOnceCache,
+  pruneViewOnceCache
 }
