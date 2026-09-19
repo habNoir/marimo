@@ -98,6 +98,8 @@ async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneN
     shouldIgnoreJid: (jid) => jid === 'status@broadcast',
     fireInitQueries: false,
     maxRetryQueueSize: 32,
+    msgRetryCounterCache: store.msgRetryCounterCache,
+    maxMsgRetryCount: 5,
 
     // Hubungkan getMessage ke database SQLite untuk retry decrypt otomatis
     getMessage: async (key) => await store.loadMessage(key.remoteJid, key.id),
@@ -141,6 +143,7 @@ async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneN
       const botJid = jidNormalizedUser(sock.user.id)
       logger.connected(botJid)
       logger.success(`habNoir Core ready with [${plugins.size}] mounted plugins.`)
+      store.pruneSessionKeys().catch(() => {})
     }
 
     if (connection === 'close') {
@@ -202,15 +205,20 @@ async function main() {
   await loadPlugins()
   logger.success(`Plugin subsystem loaded. Total: ${plugins.size} plugins active.\n`)
 
-  // Bersihkan cache media view-once yang sudah kedaluwarsa setiap 15 menit
+  // Bersihkan cache media view-once & signal pre-keys lama secara berkala
   setInterval(pruneViewOnceCache, 15 * 60 * 1000)
+  setInterval(() => store.pruneSessionKeys().catch(() => {}), 60 * 60 * 1000)
 
   // Ambil state autentikasi langsung dari database SQLite
   const { state, saveCreds, clearAuth } = await store.getAuthState()
+  await store.pruneSessionKeys().catch(() => {})
+
   let authMethod = null
   let phoneNumber = ''
 
-  if (!state.creds.registered) {
+  const isAlreadyRegistered = Boolean(state.creds.registered || state.creds.me?.id)
+
+  if (!isAlreadyRegistered) {
     logger.info('Authentication credentials required.')
     console.log('  Select initialization protocol:\n')
     console.log('  [1] Pairing Code   ── 8-character pairing code')

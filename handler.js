@@ -1,9 +1,11 @@
 import { jidNormalizedUser } from '@rexxhayanasi/elaina-baileys'
 import logger from './utils/logger.js'
+import store from './utils/store.js'
 import { executePlugin } from './utils/errorHandler.js'
 import { smsg, getConfig, downloadMedia, cacheViewOnce } from './utils/myfunction.js'
 
 const VIEWONCE_MEDIA_TYPES = ['imageMessage', 'videoMessage', 'audioMessage']
+const BOT_START_TIME = Date.now()
 
 // ─── CACHE VIEW-ONCE MEDIA ON ARRIVAL ─────────────────────────────────────────
 // WA menghapus akses ke media view-once begitu dibuka penerima, jadi kita
@@ -36,6 +38,20 @@ export async function handleMessages(sock, rawM, plugins) {
 
   const chat = rawM.key.remoteJid || ''
   if (chat === 'status@broadcast') return
+
+  // ─── MESSAGE DEDUPLICATION & TIMESTAMP AGE GUARD ───────────────────────────
+  const msgId = rawM.key?.id
+  if (msgId && store.isMessageProcessed(chat, msgId)) return
+  if (msgId) store.markMessageProcessed(chat, msgId)
+
+  const msgTimestamp = Number(rawM.messageTimestamp || 0) * 1000
+  if (msgTimestamp > 0) {
+    const now = Date.now()
+    // Skip pesan yang dikirim sebelum bot aktif (offline history sync)
+    if (msgTimestamp < BOT_START_TIME - 15000) return
+    // Skip pesan buffered yang tertunda lebih dari 60 detik
+    if (now - msgTimestamp > 60000) return
+  }
 
   const m = smsg(sock, rawM)
   const config = getConfig()

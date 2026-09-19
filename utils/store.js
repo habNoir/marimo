@@ -96,13 +96,74 @@ const stmts = {
   getLidFromPn: db.prepare(`SELECT lid FROM lid_mappings WHERE pn = ? LIMIT 1`)
 }
 
+// ─── RETRY COUNTER CACHE (BAILEYS BUFFER GUARD) ──────────────────────────────
+const msgRetryMap = new Map()
+export const msgRetryCounterCache = {
+  get: (key) => msgRetryMap.get(key),
+  set: (key, value) => {
+    msgRetryMap.set(key, value)
+    if (msgRetryMap.size > 2000) {
+      const firstKey = msgRetryMap.keys().next().value
+      msgRetryMap.delete(firstKey)
+    }
+  },
+  del: (key) => msgRetryMap.delete(key),
+  flushAll: () => msgRetryMap.clear()
+}
+
+// ─── IN-MEMORY MESSAGE DEDUPLICATION ─────────────────────────────────────────
+const processedMsgSet = new Set()
+const MAX_PROCESSED_KEYS = 5000
+
+export function isMessageProcessed(remoteJid, id) {
+  if (!id) return false
+  const key = `${remoteJid}:${id}`
+  return processedMsgSet.has(key)
+}
+
+export function markMessageProcessed(remoteJid, id) {
+  if (!id) return
+  const key = `${remoteJid}:${id}`
+  processedMsgSet.add(key)
+  if (processedMsgSet.size > MAX_PROCESSED_KEYS) {
+    const firstKey = processedMsgSet.keys().next().value
+    processedMsgSet.delete(firstKey)
+  }
+}
+
 // ─── STORE CONTROLLER ─────────────────────────────────────────────────────────
 export const store = {
   db,
+  msgRetryCounterCache,
+  isMessageProcessed,
+  markMessageProcessed,
 
   // 1. Session Storage via Elaina-Baileys built-in SQLite engine
   getAuthState: async () => {
     return await useSqliteAuthState({ database: db })
+  },
+
+  // Auto-prune obsolete signal pre-keys & expired messages
+  pruneSessionKeys: async () => {
+    try {
+      const row = db.prepare("SELECT value FROM creds WHERE key = '__creds__' LIMIT 1").get()
+      if (row) {
+        const credsData = JSON.parse(row.value)
+        const firstUnuploaded = credsData.firstUnuploadedPreKeyId || 0
+        if (firstUnuploaded > 50) {
+          const minKeepId = firstUnuploaded - 30
+          db.prepare(`
+            DELETE FROM signal_keys
+            WHERE type = 'pre-key' AND CAST(id AS INTEGER) < ?
+          `).run(minKeepId)
+        }
+      }
+
+      const threeDaysAgo = Math.floor(Date.now() / 1000) - (3 * 24 * 60 * 60)
+      db.prepare("DELETE FROM messages WHERE timestamp < ?").run(threeDaysAgo)
+    } catch {
+      // Ignore background pruning errors
+    }
   },
 
   // 2. Bind Socket Events to SQLite tables
