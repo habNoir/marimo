@@ -19,11 +19,11 @@ let preUploadedVideo = null
 let preUploadedAudio = null
 
 const box = (title, rows) => {
-  let text = `╭──⊷ ${title}\n│\n`
+  let text = `╭──⇒ ${title}\n│\n`
   for (const row of rows) {
-    text += `│ ▢ ${row}\n`
+    text += `│ ⇒ ${row}\n`
   }
-  text += `╰────────────⊷`
+  text += `╰────────────⇒`
   return text
 }
 

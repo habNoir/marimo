@@ -50,6 +50,22 @@ db.exec(`
     metadata TEXT,
     updatedAt INTEGER
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    jid TEXT PRIMARY KEY,
+    name TEXT,
+    age INTEGER,
+    registeredAt INTEGER,
+    warnedAt INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS blacklist (
+    targetJid TEXT PRIMARY KEY,
+    type TEXT,
+    reason TEXT,
+    blacklistedAt INTEGER,
+    expiresAt INTEGER
+  );
 `)
 
 // ─── PREPARED STATEMENTS ──────────────────────────────────────────────────────
@@ -93,7 +109,41 @@ const stmts = {
   getContact: db.prepare(`SELECT * FROM contacts WHERE jid = ? LIMIT 1`),
   getGroup: db.prepare(`SELECT * FROM groups WHERE id = ? LIMIT 1`),
   getPnFromLid: db.prepare(`SELECT pn FROM lid_mappings WHERE lid = ? LIMIT 1`),
-  getLidFromPn: db.prepare(`SELECT lid FROM lid_mappings WHERE pn = ? LIMIT 1`)
+  getLidFromPn: db.prepare(`SELECT lid FROM lid_mappings WHERE pn = ? LIMIT 1`),
+
+  registerUser: db.prepare(`
+    INSERT INTO users (jid, name, age, registeredAt, warnedAt)
+    VALUES (@jid, @name, @age, @registeredAt, @warnedAt)
+    ON CONFLICT(jid) DO UPDATE SET
+      name = excluded.name,
+      age = excluded.age,
+      registeredAt = excluded.registeredAt
+  `),
+
+  getUser: db.prepare(`SELECT * FROM users WHERE jid = ? LIMIT 1`),
+  getUsersCount: db.prepare(`SELECT COUNT(*) as count FROM users`),
+  setWarnedTime: db.prepare(`
+    INSERT INTO users (jid, name, age, registeredAt, warnedAt)
+    VALUES (?, NULL, NULL, NULL, ?)
+    ON CONFLICT(jid) DO UPDATE SET warnedAt = excluded.warnedAt
+  `),
+
+  addBlacklist: db.prepare(`
+    INSERT INTO blacklist (targetJid, type, reason, blacklistedAt, expiresAt)
+    VALUES (@targetJid, @type, @reason, @blacklistedAt, @expiresAt)
+    ON CONFLICT(targetJid) DO UPDATE SET
+      type = excluded.type,
+      reason = excluded.reason,
+      blacklistedAt = excluded.blacklistedAt,
+      expiresAt = excluded.expiresAt
+  `),
+
+  removeBlacklist: db.prepare(`DELETE FROM blacklist WHERE targetJid = ?`),
+  getBlacklist: db.prepare(`SELECT * FROM blacklist WHERE targetJid = ? LIMIT 1`),
+  listBlacklists: db.prepare(`SELECT * FROM blacklist ORDER BY blacklistedAt DESC`),
+  getBlacklistCount: db.prepare(`SELECT COUNT(*) as count FROM blacklist`),
+  getContactsCount: db.prepare(`SELECT COUNT(*) as count FROM contacts`),
+  getGroupsCount: db.prepare(`SELECT COUNT(*) as count FROM groups`)
 }
 
 // ─── RETRY COUNTER CACHE (BAILEYS BUFFER GUARD) ──────────────────────────────
@@ -291,6 +341,102 @@ export const store = {
   getGroupMetadata: (groupId) => {
     const row = stmts.getGroup.get(groupId)
     return row ? JSON.parse(row.metadata) : null
+  },
+
+  // 4. User Management Methods
+  registerUser: (jid, name, age) => {
+    const normalized = jidNormalizedUser(jid)
+    stmts.registerUser.run({
+      jid: normalized,
+      name: name || 'User',
+      age: Number(age) || 0,
+      registeredAt: Date.now(),
+      warnedAt: null
+    })
+  },
+
+  getUser: (jid) => {
+    if (!jid) return null
+    const normalized = jidNormalizedUser(jid)
+    return stmts.getUser.get(normalized) || null
+  },
+
+  getUsersCount: () => {
+    return stmts.getUsersCount.get()?.count || 0
+  },
+
+  setUserWarnedTime: (jid, timestamp) => {
+    if (!jid) return
+    const normalized = jidNormalizedUser(jid)
+    stmts.setWarnedTime.run(normalized, timestamp)
+  },
+
+  getUserWarnedTime: (jid) => {
+    if (!jid) return null
+    const normalized = jidNormalizedUser(jid)
+    const user = stmts.getUser.get(normalized)
+    return user?.warnedAt || null
+  },
+
+  // 5. Blacklist Management Methods
+  addBlacklist: (targetJid, type, reason, durationMs = 0) => {
+    const normalized = jidNormalizedUser(targetJid)
+    const now = Date.now()
+    const expiresAt = durationMs > 0 ? now + durationMs : 0
+    stmts.addBlacklist.run({
+      targetJid: normalized,
+      type: type || 'user',
+      reason: reason || 'No reason specified',
+      blacklistedAt: now,
+      expiresAt
+    })
+  },
+
+  removeBlacklist: (targetJid) => {
+    if (!targetJid) return false
+    const normalized = jidNormalizedUser(targetJid)
+    const res = stmts.removeBlacklist.run(normalized)
+    return res.changes > 0
+  },
+
+  getBlacklist: (targetJid) => {
+    if (!targetJid) return null
+    const normalized = jidNormalizedUser(targetJid)
+    const row = stmts.getBlacklist.get(normalized)
+    if (!row) return null
+
+    if (row.expiresAt > 0 && Date.now() > row.expiresAt) {
+      stmts.removeBlacklist.run(normalized)
+      return null
+    }
+
+    return row
+  },
+
+  listBlacklists: () => {
+    const rows = stmts.listBlacklists.all()
+    const now = Date.now()
+    const active = []
+    for (const row of rows) {
+      if (row.expiresAt > 0 && now > row.expiresAt) {
+        stmts.removeBlacklist.run(row.targetJid)
+      } else {
+        active.push(row)
+      }
+    }
+    return active
+  },
+
+  getBlacklistCount: () => {
+    return stmts.getBlacklistCount.get()?.count || 0
+  },
+
+  getContactsCount: () => {
+    return stmts.getContactsCount.get()?.count || 0
+  },
+
+  getGroupsCount: () => {
+    return stmts.getGroupsCount.get()?.count || 0
   }
 }
 

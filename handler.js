@@ -134,6 +134,48 @@ export async function handleMessages(sock, rawM, plugins) {
   m.commandName = command
   m.usedPrefix = matchedPrefix
 
+  // ─── BLACKLIST CHECK (USER & CHAT) ──────────────────────────────────────────
+  if (!m.isOwner) {
+    const isChatBlacklisted = store.getBlacklist(m.chat)
+    const isUserBlacklisted = store.getBlacklist(m.sender)
+    if (isChatBlacklisted || isUserBlacklisted) {
+      return
+    }
+  }
+
+  // ─── USER REGISTRATION & DAILY WARNING RATE LIMIT ───────────────────────────
+  const isRegisterCommand = ['register', 'reg'].includes(command) || matchedPlugin.unregistered === true
+  if (!m.isOwner && !isRegisterCommand) {
+    const registeredUser = store.getUser(m.sender)
+    if (!registeredUser || !registeredUser.registeredAt) {
+      const lastWarned = store.getUserWarnedTime(m.sender)
+      const now = Date.now()
+      const ONE_DAY = 24 * 60 * 60 * 1000
+
+      if (lastWarned && now - Number(lastWarned) < ONE_DAY) {
+        // Ignores user silently for 24 hours if already warned today
+        return
+      }
+
+      // Record warning timestamp for today
+      store.setUserWarnedTime(m.sender, now)
+
+      const warningText =
+        `*Registration Required*\n\n` +
+        `You are not registered in habNoir system.\n` +
+        `Please register in private chat to access bot commands.\n\n` +
+        `Example in Private Chat:\n` +
+        `${matchedPrefix}register name.age`
+
+      if (m.isGroup) {
+        await sock.sendMessage(m.sender, { text: warningText }).catch(() => {})
+        return await m.reply(warningText)
+      }
+
+      return await m.reply(warningText)
+    }
+  }
+
   logger.command(m, {
     command,
     usedPrefix: matchedPrefix,

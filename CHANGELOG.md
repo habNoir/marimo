@@ -254,3 +254,64 @@ This release addresses core Baileys protocol-level session buffering, eliminates
 › Author  : habNoir
 
 > habNoir
+
+---
+
+## ✧ Marimo ── v1.6.0 ✧
+› Major Feature Release / User Management, Blacklist Engine, & Telemetry
+
+This major release introduces a mandatory Private-Chat User Registration system with Daily Warning Rate Limiting, a flexible User & Group Blacklist Engine with granular duration controls (seconds to permanent), a comprehensive Bot & Server Infrastructure Statistics plugin (.stats), and UI refinements.
+
+✧ Detailed Technical Breakdown ✧
+
+[+] 1. User Management & Registration Subsystem (utils/store.js & handler.js)
+    › Relational User Schema: Created `users` table in SQLite (`jid`, `name`, `age`, `registeredAt`, `warnedAt`).
+    › Private Chat Registration: Added `.register name.age` command (`plugins/user/register.js`), restricted exclusively to private chat context (`handler.private = true`).
+    › Registration Enforcement: Middleware in `handler.js` blocks unregistered users from calling commands, requiring membership validation before command execution.
+    › Daily Warning Rate Limiter:
+      - Unregistered users attempting commands receive 1 warning notice.
+      - Dual-Dispatch Warning: If triggered in a group, warning is replied in-group AND sent as a private message to user.
+      - 24-Hour Cooldown: Records `warnedAt` timestamp in SQLite. Subsequent command attempts from the user within 24 hours are silently ignored to prevent chat spam.
+
+[+] 2. Flexible User & Chat Blacklist Subsystem (utils/store.js & handler.js)
+    › Relational Blacklist Schema: Created `blacklist` table in SQLite (`targetJid`, `type`, `reason`, `blacklistedAt`, `expiresAt`).
+    › Granular Time Units: Supports `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
+    › Default Permanent Rule: Omitting time duration (or using `0`/`perm`) automatically marks the entry as Permanent (`expiresAt = 0`).
+    › Flexible Target Resolution (`plugins/owner/blacklist.js`):
+      - Quoted Message  ➔ Targets quoted sender JID.
+      - Mention (@tag)   ➔ Targets tagged user JID.
+      - Phone Number    ➔ Targets parsed user JID (e.g. `628123456789@s.whatsapp.net`).
+      - In-Group Exec   ➔ Auto-detects current Group JID (`m.chat`).
+    › Owner Override: Bot owners (`m.isOwner`) remain immune to blacklist rules.
+    › Owner Commands: Added `.blacklist`, `.unblacklist`, and `.listblacklist` in `plugins/owner/`.
+
+[+] 3. Infrastructure & Bot Statistics Subsystem (plugins/general/stats.js)
+    › Added `.stats` / `.botstats` / `.status` command in `plugins/general/stats.js`.
+    › Comprehensive Telemetry: Reports total registered users, active blacklists, group count, cached contacts, system uptime, RAM usage, CPU model/cores, Node.js version, and Baileys version.
+    › Pre-Uploaded Media Relay: Utilizes `prepareWAMessageMedia` and `generateWAMessageFromContent` with newsletter contextInfo (`forwardedNewsletterMessageInfo`) matching the `.menu` media engine.
+
+[+] 4. UI & Menu Layout Alignment (plugins/general/menu.js)
+    › Standardized Box Layout: Replaced unicode header frame arrows with `⇒` across box structures in `.menu` and `.stats`.
+    › Improved Mobile Readability: Formatted all plugin usage cards and error bounds for compact smartphone viewports.
+
+✧ File Modification Matrix (v1.5.4 vs v1.6.0) ✧
+
+› package.json                  ➜ Bumped version to 1.6.0.
+› hab.js                        ➜ Maintained WAL SQLite connection graph.
+› handler.js                    ➜ Integrated Blacklist check & Registration Daily Warn Middleware.
+› ./utils/store.js              ➜ Added `users` & `blacklist` DDL, queries, and controller methods.
+› ./plugins/general/menu.js     ➜ Updated box frame unicode arrows to `⇒`.
+› ./plugins/general/stats.js    ➜ NEW: Infrastructure telemetry plugin with CDN media relay.
+› ./plugins/user/register.js   ➜ NEW: Private-chat user registration command.
+› ./plugins/owner/blacklist.js  ➜ NEW: Owner user & group blacklist manager with time parser.
+› ./plugins/owner/unblacklist.js➜ NEW: Owner unblacklist command.
+› ./plugins/owner/listblacklist.js ➜ NEW: Owner active blacklist inspector.
+
+✧ Metadata ✧
+
+› Version : 1.6.0
+› Engine  : @rexxhayanasi/elaina-baileys
+› Storage : SQLite (WAL Mode)
+› Author  : habNoir
+
+> habNoir

@@ -1,7 +1,6 @@
 import { fetchBuffer } from '../../utils/myfunction.js'
 
 async function getTikTokMedia(url, mode) {
-  // 1. Try ssstik.io scraping first
   const pageRes = await fetch('https://ssstik.io/id', {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -45,7 +44,6 @@ async function getTikTokMedia(url, mode) {
     if (videoMatch) mediaUrl = videoMatch[1]
   }
 
-  // 2. Fallback to TikWM API if ssstik.io direct scrape yields no media URL
   if (!mediaUrl) {
     const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`)
     const tikJson = await tikRes.json()
@@ -67,21 +65,42 @@ async function getTikTokMedia(url, mode) {
 }
 
 const handler = async (m, { conn, args, text, command, usedPrefix }) => {
-  const mode = (args[0] || '').toLowerCase()
-  const url = args[1] || ''
-
-  if (!mode || !['mp3', 'mp4'].includes(mode) || !url) {
+  // 1. GUARD — contextual explanation when input is missing.
+  if (!text) {
     return await m.reply(
       `*TikTok Downloader*\n\n` +
-      `Format: ${usedPrefix}${command} <mp3/mp4> <tiktok_url>\n\n` +
+      `Download videos or audio from TikTok without watermark.\n\n` +
+      `Format: ${usedPrefix}${command} <mp3|mp4> <tiktok_url>\n\n` +
       `Example:\n` +
       `${usedPrefix}${command} mp4 https://vt.tiktok.com/ZSjXxQYXX/`
     )
   }
 
+  // 2. VALIDATE — contextual explanation when format or url is invalid.
+  const mode = (args[0] || '').toLowerCase()
+  const url = args[1] || ''
+
+  if (!['mp3', 'mp4'].includes(mode) || !url) {
+    return await m.reply(
+      `*Invalid Format*\n\n` +
+      `Please specify a valid media format (mp3 or mp4) and TikTok URL.\n\n` +
+      `Format: ${usedPrefix}${command} <mp3|mp4> <tiktok_url>\n\n` +
+      `Example:\n` +
+      `${usedPrefix}${command} mp4 https://vt.tiktok.com/ZSjXxQYXX/`
+    )
+  }
+
+  // 3. NOTIFY — required for slow media fetching & download operations.
+  await m.reply(
+    `*Downloading Media*\n\n` +
+    `Fetching the file from the server. This may take a moment.`
+  )
+
+  // 4. WORK — no try/catch. Let failures throw.
   const { mediaUrl, title } = await getTikTokMedia(url, mode)
   const buffer = await fetchBuffer(mediaUrl)
 
+  // 5. DELIVER — return the send call.
   if (mode === 'mp3') {
     return await conn.sendMessage(
       m.chat,
