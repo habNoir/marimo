@@ -1,4 +1,4 @@
-import { fetchBuffer } from '../../utils/myfunction.js'
+import { fetchBuffer, getWaitMessage } from '../../utils/myfunction.js'
 
 async function getTikTokMedia(url, mode) {
   const pageRes = await fetch('https://ssstik.io/id', {
@@ -91,10 +91,7 @@ const handler = async (m, { conn, args, text, command, usedPrefix }) => {
   }
 
   // 3. NOTIFY — required for slow media fetching & download operations.
-  await m.reply(
-    `*Downloading Media*\n\n` +
-    `Fetching the file from the server. This may take a moment.`
-  )
+  await m.reply(getWaitMessage())
 
   // 4. WORK — no try/catch. Let failures throw.
   const { mediaUrl, title } = await getTikTokMedia(url, mode)

@@ -1,5 +1,5 @@
 import { createSticker } from '../../utils/sticker.js'
-import { fetchBuffer } from '../../utils/myfunction.js'
+import { fetchBuffer, getWaitMessage } from '../../utils/myfunction.js'
 
 const handler = async (m, { conn, text, usedPrefix, command }) => {
   // 1. GUARD — contextual explanation when text input is missing.
@@ -22,10 +22,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
   }
 
   // 3. NOTIFY — required for slow external API rendering and ffmpeg conversion.
-  await m.reply(
-    `*Generating Image*\n\n` +
-    `Your request is being processed. This may take a moment.`
-  )
+  await m.reply(getWaitMessage())
 
   // 4. WORK — no try/catch. Let failures throw.
   const apiUrl = `https://api.deline.web.id/maker/brat?text=${encodeURIComponent(text)}`

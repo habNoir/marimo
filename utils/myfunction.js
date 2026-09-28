@@ -33,6 +33,16 @@ export function getConfig() {
   }
 }
 
+export function getWaitMessage() {
+  const config = getConfig()
+  const waitMessages = config.messages?.wait
+  if (Array.isArray(waitMessages) && waitMessages.length > 0) {
+    const randomIndex = Math.floor(Math.random() * waitMessages.length)
+    return waitMessages[randomIndex]
+  }
+  return '⏳ Processing your request. Please wait...'
+}
+
 export function formatRuntime(seconds) {
   seconds = Number(seconds)
   const d = Math.floor(seconds / (3600 * 24))
@@ -406,5 +416,6 @@ export default {
   fetchBuffer,
   cacheViewOnce,
   getViewOnceCache,
-  pruneViewOnceCache
+  pruneViewOnceCache,
+  getWaitMessage
 }

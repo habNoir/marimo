@@ -1,4 +1,4 @@
-import { downloadMedia, getViewOnceCache } from '../../utils/myfunction.js'
+import { downloadMedia, getViewOnceCache, getWaitMessage } from '../../utils/myfunction.js'
 
 const handler = async (m, { conn, usedPrefix, command }) => {
   // 1. GUARD — contextual explanation when quoted target is not a view-once message.
@@ -14,10 +14,7 @@ const handler = async (m, { conn, usedPrefix, command }) => {
   }
 
   // 2. NOTIFY — required for media extraction & downloading.
-  await m.reply(
-    `*Revealing Media*\n\n` +
-    `Fetching the view-once message contents. This may take a moment.`
-  )
+  await m.reply(getWaitMessage())
 
   // 3. WORK — no try/catch or console.error. Let failures throw to executePlugin.
   const stanzaId = target.key?.id

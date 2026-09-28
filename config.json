@@ -1,7 +1,7 @@
 {
   "botName": "Marimo",
   "ownerName": "habNoir",
-  "botVersion": "1.5",
+  "botVersion": "1.6",
   "ownerNumbers": [
     "628138174768"
   ],
@@ -14,5 +14,29 @@
     "multi": false,
     "single": "!",
     "list": ["!", ".", "/", "#", "?"]
+  },
+  "messages": {
+    "wait": [
+      "⏳ Hold your horses. I'm still making this happen.",
+      "🕷️ Processing... try not to break anything while you wait.",
+      "⌛ Give me a second. Even machines need to suffer sometimes.",
+      "🧩 Crunching the data. Your patience is being tested.",
+      "🕸️ Working on it... unfortunately, you're not my only problem.",
+      "⚙️ Processing your request. Don't blink, you might miss the miracle.",
+      "🧠 Thinking... yes, unlike you.",
+      "🥀 Still working. Complaining won't make me faster.",
+      "⛓️ Your request has entered the machine. Good luck.",
+      "🩸 Processing... something is definitely happening.",
+      "🪦 Almost there. Hopefully worth the wait.",
+      "☠️ Working on it. If this fails, pretend you never asked."
+    ],
+    "permission": {
+      "owner": "[!] Access Denied. Nice try, but this command is reserved for my creator. You don't have the clearance.",
+      "group": "[!] Invalid Context. This command only works in groups. Go talk in a group instead of bothering me here.",
+      "private": "[!] Invalid Context. Keep this in private chat. The group doesn't need to see your business.",
+      "admin": "[!] Permission Required. You're not an admin here. Come back when you actually have power.",
+      "botAdmin": "[!] Bot Permission Required. I can't do that unless you make me an admin. Give me admin rights first.",
+      "registered": "*Already Registered*\n\nYou are already registered in the system. Don't waste my memory registering twice."
+    }
   }
 }

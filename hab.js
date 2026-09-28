@@ -26,6 +26,7 @@ import { pathToFileURL } from 'node:url'
 import qrcode from 'qrcode-terminal'
 import logger from './utils/logger.js'
 import store from './utils/store.js'
+import crmstore from './utils/crmstore.js'
 import { initGlobalErrorTrap } from './utils/errorHandler.js'
 import { handleMessages } from './handler.js'
 import { pruneViewOnceCache } from './utils/myfunction.js'
@@ -92,7 +93,8 @@ async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneN
     logger: pinoLogger,
     browser: ['Mac OS', 'Chrome', '14.4.1'],
     markOnlineOnConnect: true,
-    generateHighQualityLinkPreview: false,
+    generateHighQualityLinkPreview: true,
+    linkPreviewImageThumbnailWidth: 640,
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false,
     shouldIgnoreJid: (jid) => jid === 'status@broadcast',
@@ -111,6 +113,7 @@ async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneN
 
   // Ikat seluruh event WhatsApp (Kontak, LID, Pesan, Grup) ke database SQLite
   store.bind(sock.ev)
+  crmstore.bind(sock)
 
   if (!state.creds.registered && authMethod === '1' && !pairingCodeRequested) {
     pairingCodeRequested = true

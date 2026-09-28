@@ -1,11 +1,9 @@
 node_modules/
-session/
-package-lock.json
-*.db
-session.json
 database/
-*.db
-*.db-shm
-*.db-wal
+data/
+*.log
+npm-debug.log*
+.DS_Store
 .agents/
-*skilss
+.gitignore
+

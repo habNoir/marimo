@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   prepareWAMessageMedia,
@@ -7,7 +8,8 @@ import {
 import {
   getSystemInfo,
   getTimeInfo,
-  getConfig
+  getConfig,
+  formatSize
 } from '../../utils/myfunction.js'
 import store from '../../utils/store.js'
 
@@ -23,39 +25,80 @@ const box = (title, rows) => {
   return text
 }
 
+function getPathSize(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      return formatSize(fs.statSync(filePath).size)
+    }
+  } catch {}
+  return '0 B'
+}
+
 const handler = async (m, { conn }) => {
+  const start = Date.now()
   const config = getConfig()
   const sys = getSystemInfo()
   const time = getTimeInfo()
+  const procMem = process.memoryUsage()
+  const latency = Date.now() - start
 
   const totalUsers = store.getUsersCount()
   const totalBlacklists = store.getBlacklistCount()
   const totalGroups = store.getGroupsCount()
   const totalContacts = store.getContactsCount()
 
-  const botBox = box(`${config.botName} Statistics`, [
+  const sessionDbSize = getPathSize('./database/session/session.db')
+  const crmDbSize = getPathSize('./database/crmdb.db')
+
+  const totalMemBytes = os.totalmem()
+  const freeMemBytes = os.freemem()
+  const usedMemBytes = totalMemBytes - freeMemBytes
+  const ramUsagePct = ((usedMemBytes / totalMemBytes) * 100).toFixed(1)
+
+  const loadAvg = os.loadavg()
+  const loadStr = loadAvg[0] > 0 ? loadAvg.map((n) => n.toFixed(2)).join(', ') : 'N/A (Windows Kernel)'
+
+  const botBox = box(`${config.botName} System Profile`, [
     `Bot Name     : ${config.botName}`,
-    `Version      : ${config.botVersion}`,
-    `Uptime       : ${sys.uptime}`,
-    `Registered   : ${totalUsers} users`,
-    `Blacklisted  : ${totalBlacklists} targets`,
-    `Groups       : ${totalGroups} groups`,
-    `Contacts     : ${totalContacts} contacts`,
-    `Time         : ${time.timeString}`,
+    `Bot Version  : v${config.botVersion}`,
+    `Bot Owner    : ${config.ownerName || 'habNoir'}`,
+    `Bot Uptime   : ${sys.uptime}`,
+    `Host Uptime  : ${sys.osUptime}`,
+    `Ping Latency : ${latency} ms`,
+    `Active Prefix: ${config.prefix?.single || '!'}`,
+    `Day & Time   : ${time.dayName}, ${time.timeString}`,
     `Date         : ${time.dateString}`
   ])
 
-  const systemBox = box('Server Infrastructure', [
-    `Baileys      : ${sys.baileyVersion}`,
-    `Package      : ${sys.baileysName}`,
-    `Platform     : ${sys.type} (${sys.arch})`,
-    `CPU Model    : ${sys.cpuModel}`,
-    `CPU Cores    : ${sys.cpuCores} Cores`,
-    `RAM Usage    : ${sys.usedRam} / ${sys.totalRam}`,
-    `Node.js      : ${sys.nodeVersion}`
+  const dbBox = box('Database & Storage Metrics', [
+    `Registered   : ${totalUsers} Users`,
+    `Blacklists   : ${totalBlacklists} Targets`,
+    `Active Groups: ${totalGroups} Groups`,
+    `Saved Contact: ${totalContacts} Contacts`,
+    `Session DB   : ${sessionDbSize}`,
+    `CRM Store DB : ${crmDbSize}`
   ])
 
-  const caption = `${botBox}\n\n${systemBox}`
+  const memBox = box('Process & Memory Footprint', [
+    `Node.js      : ${sys.nodeVersion}`,
+    `Process RSS  : ${sys.rss}`,
+    `Heap Used    : ${sys.heapUsed}`,
+    `Heap Total   : ${formatSize(procMem.heapTotal)}`,
+    `External Mem : ${formatSize(procMem.external)}`,
+    `ArrayBuffers : ${formatSize(procMem.arrayBuffers || 0)}`
+  ])
+
+  const systemBox = box('Server Infrastructure Specs', [
+    `Engine       : ${sys.baileysName} (v${sys.baileyVersion})`,
+    `OS Platform  : ${sys.type} ${sys.release} (${sys.arch})`,
+    `CPU Model    : ${sys.cpuModel}`,
+    `CPU Topology : ${sys.cpuCores} Cores`,
+    `System Load  : ${loadStr}`,
+    `RAM Usage    : ${sys.usedRam} / ${sys.totalRam} (${ramUsagePct}%)`,
+    `Free Memory  : ${sys.freeRam}`
+  ])
+
+  const caption = `${botBox}\n\n${dbBox}\n\n${memBox}\n\n${systemBox}`
 
   const mediaDir = './media'
 
@@ -107,6 +150,6 @@ const handler = async (m, { conn }) => {
 
 handler.help = ['stats']
 handler.tags = ['general']
-handler.command = ['stats', 'botstats', 'status']
+handler.command = ['stats', 'botstats', 'status', 'ping']
 
 export default handler

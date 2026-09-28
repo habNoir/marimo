@@ -183,20 +183,22 @@ export async function handleMessages(sock, rawM, plugins) {
     groupMetadata
   })
 
+  const permMsgs = config.messages?.permission || {}
+
   if (matchedPlugin.owner && !m.isOwner) {
-    return await m.reply('[!] Access Denied: This command is reserved for the bot owner.')
+    return await m.reply(permMsgs.owner || '[!] Access Denied: This command is reserved for the bot owner.')
   }
   if (matchedPlugin.group && !m.isGroup) {
-    return await m.reply('[!] Invalid Context: This command can only be used inside a group.')
+    return await m.reply(permMsgs.group || '[!] Invalid Context: This command can only be used inside a group.')
   }
   if (matchedPlugin.private && !m.isPrivate) {
-    return await m.reply('[!] Invalid Context: This command can only be used in private chat.')
+    return await m.reply(permMsgs.private || '[!] Invalid Context: This command can only be used in private chat.')
   }
   if (matchedPlugin.admin && !m.isAdmin) {
-    return await m.reply('[!] Permission Required: You must be an administrator in this group.')
+    return await m.reply(permMsgs.admin || '[!] Permission Required: You must be an administrator in this group.')
   }
   if (matchedPlugin.botAdmin && !m.isBotAdmin) {
-    return await m.reply('[!] Bot Permission Required: habNoir must be promoted to admin.')
+    return await m.reply(permMsgs.botAdmin || '[!] Bot Permission Required: habNoir must be promoted to admin.')
   }
 
   await executePlugin(matchedPlugin, m, {

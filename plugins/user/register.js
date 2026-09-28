@@ -1,7 +1,18 @@
 import store from '../../utils/store.js'
+import { getConfig } from '../../utils/myfunction.js'
 
 const handler = async (m, { text, usedPrefix, command }) => {
-  // 1. GUARD — contextual explanation when registration input is missing.
+  // 1. GUARD — check if user is already registered.
+  const registeredUser = store.getUser(m.sender)
+  if (registeredUser && registeredUser.registeredAt) {
+    const config = getConfig()
+    return await m.reply(
+      config.messages?.permission?.registered ||
+      `*Already Registered*\n\nYou are already registered in the system.`
+    )
+  }
+
+  // contextual explanation when registration input is missing.
   if (!text) {
     return await m.reply(
       `*User Registration*\n\n` +

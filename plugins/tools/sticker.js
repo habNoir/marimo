@@ -1,5 +1,5 @@
 import { createSticker } from '../../utils/sticker.js'
-import { downloadMedia } from '../../utils/myfunction.js'
+import { downloadMedia, getWaitMessage } from '../../utils/myfunction.js'
 
 const handler = async (m, { conn, usedPrefix, command }) => {
   // 1. GUARD — contextual explanation when no valid image or video is attached or quoted.
@@ -33,10 +33,7 @@ const handler = async (m, { conn, usedPrefix, command }) => {
   }
 
   // 3. NOTIFY — required for media downloading and ffmpeg webp conversion.
-  await m.reply(
-    `*Converting Media*\n\n` +
-    `Your media is being converted into a sticker. This may take a moment.`
-  )
+  await m.reply(getWaitMessage())
 
   // 4. WORK — no try/catch. Let failures throw to executePlugin.
   const mediaType = hasVideo ? 'video' : 'image'
