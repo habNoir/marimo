@@ -368,3 +368,50 @@ This release upgrades media and Motion Photo sending to match native @rexxhayana
 › Author  : habNoir
 
 > habNoir
+
+---
+
+## ✧ Marimo ── v1.6.2 ✧
+› Minor Feature Release / BMKG Realtime Earthquake Subsystem & Shakemap Infographics
+
+This release introduces the BMKG Realtime Earthquake plugin (`.gempa`, `.bmkg`, `.infogempa`), which fetches official live seismic activity data from BMKG Indonesia and dispatches formatted reports alongside Shakemap infographics.
+
+✧ Detailed Technical Breakdown ✧
+
+[+] 1. BMKG Realtime Earthquake Subsystem (plugins/tools/gempa.js)
+    › Added `.gempa` / `.bmkg` / `.infogempa` command in `plugins/tools/gempa.js`.
+    › Live BMKG API Parsing: Fetches JSON data from official TEWS endpoint (`https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json`).
+    › Shakemap Infographic Rendering: Downloads and dispatches the corresponding map image (`Shakemap`) as a WhatsApp media stanza with detailed metrics (Date, Time, Magnitude, Depth, Epicenter Location, Tsunami Potential, and Felt Areas).
+    › Skill & Pattern Compliance: Fully compliant with `plugin-builder` (Guard/Validate/Notify/Work/Deliver lifecycle, no local try/catch, central error handling, English formatting).
+
+[+] 2. SQLite Gempa Subscriber & State Schema (utils/store.js)
+    › Relational Gempa Schema: Created `gempa_subscribers` table (`chatJid`, `enabled`, `updatedAt`) and `gempa_state` table (`key`, `value`, `updatedAt`).
+    › Prepared Statements & Controllers:
+      - `upsertGempaSubscriber` / `getGempaSubscriber` / `listGempaSubscribers` for managing broadcast target chats.
+      - `getGempaState` / `setGempaState` for recording dispatched earthquake IDs to prevent duplicate broadcasts.
+      - Exposed store methods: `setGempaNotify`, `getGempaNotify`, `getGempaSubscribers`, `getLastGempaState`, and `setLastGempaState`.
+
+[+] 3. Workspace Dependencies & Configuration Alignment
+    › Dependency Management: Installed `axios` (`^1.20.0`) in `package.json`.
+    › Git Rules: Appended `package-lock.json` to `.gitignore` to keep git diffs lightweight.
+    › Configuration Sync: Aligned `botVersion` in `config.json` to `1.6.2`.
+    › Documentation: Synchronized `README.md` directory structure, dependencies, and available command matrix.
+
+✧ File Modification Matrix (v1.6.1 vs v1.6.2) ✧
+
+› .gitignore                    ➔ Added package-lock.json rule.
+› package.json                  ➔ Bumped version to 1.6.2 and added axios dependency.
+› config.json                   ➔ Aligned botVersion to 1.6.2.
+› README.md                     ➔ Synchronized v1.6.2 documentation, directory tree, and command catalog.
+› ./utils/store.js              ➔ Added gempa_subscribers & gempa_state tables, prepared statements, and subscriber store methods.
+› ./plugins/tools/gempa.js     ➔ NEW: BMKG Realtime Earthquake report plugin with Shakemap infographic relay.
+
+✧ Metadata ✧
+
+› Version : 1.6.2
+› Engine  : @rexxhayanasi/elaina-baileys
+› Storage : SQLite (WAL Mode)
+› Author  : habNoir
+
+> habNoir
+

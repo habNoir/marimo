@@ -66,6 +66,18 @@ db.exec(`
     blacklistedAt INTEGER,
     expiresAt INTEGER
   );
+
+  CREATE TABLE IF NOT EXISTS gempa_subscribers (
+    chatJid TEXT PRIMARY KEY,
+    enabled INTEGER,
+    updatedAt INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS gempa_state (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updatedAt INTEGER
+  );
 `)
 
 // ─── PREPARED STATEMENTS ──────────────────────────────────────────────────────
@@ -143,7 +155,27 @@ const stmts = {
   listBlacklists: db.prepare(`SELECT * FROM blacklist ORDER BY blacklistedAt DESC`),
   getBlacklistCount: db.prepare(`SELECT COUNT(*) as count FROM blacklist`),
   getContactsCount: db.prepare(`SELECT COUNT(*) as count FROM contacts`),
-  getGroupsCount: db.prepare(`SELECT COUNT(*) as count FROM groups`)
+  getGroupsCount: db.prepare(`SELECT COUNT(*) as count FROM groups`),
+
+  upsertGempaSubscriber: db.prepare(`
+    INSERT INTO gempa_subscribers (chatJid, enabled, updatedAt)
+    VALUES (@chatJid, @enabled, @updatedAt)
+    ON CONFLICT(chatJid) DO UPDATE SET
+      enabled = excluded.enabled,
+      updatedAt = excluded.updatedAt
+  `),
+
+  getGempaSubscriber: db.prepare(`SELECT * FROM gempa_subscribers WHERE chatJid = ? LIMIT 1`),
+  listGempaSubscribers: db.prepare(`SELECT chatJid FROM gempa_subscribers WHERE enabled = 1`),
+
+  getGempaState: db.prepare(`SELECT value FROM gempa_state WHERE key = ? LIMIT 1`),
+  setGempaState: db.prepare(`
+    INSERT INTO gempa_state (key, value, updatedAt)
+    VALUES (@key, @value, @updatedAt)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updatedAt = excluded.updatedAt
+  `)
 }
 
 // ─── RETRY COUNTER CACHE (BAILEYS BUFFER GUARD) ──────────────────────────────
@@ -437,6 +469,42 @@ export const store = {
 
   getGroupsCount: () => {
     return stmts.getGroupsCount.get()?.count || 0
+  },
+
+  // 6. BMKG Gempa Realtime Alert Subsystem
+  setGempaNotify: (chatJid, enabled) => {
+    if (!chatJid) return
+    const normalized = jidNormalizedUser(chatJid)
+    stmts.upsertGempaSubscriber.run({
+      chatJid: normalized,
+      enabled: enabled ? 1 : 0,
+      updatedAt: Date.now()
+    })
+  },
+
+  getGempaNotify: (chatJid) => {
+    if (!chatJid) return false
+    const normalized = jidNormalizedUser(chatJid)
+    const row = stmts.getGempaSubscriber.get(normalized)
+    return Boolean(row && row.enabled === 1)
+  },
+
+  getGempaSubscribers: () => {
+    const rows = stmts.listGempaSubscribers.all()
+    return rows.map((r) => r.chatJid)
+  },
+
+  getLastGempaState: (key) => {
+    const row = stmts.getGempaState.get(key)
+    return row ? row.value : null
+  },
+
+  setLastGempaState: (key, value) => {
+    stmts.setLastGempaState.run({
+      key,
+      value: String(value),
+      updatedAt: Date.now()
+    })
   }
 }
 
