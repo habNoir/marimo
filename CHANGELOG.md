@@ -197,10 +197,6 @@ This release focuses on adding robust View Once message handling and plugin supp
 › Storage : SQLite (WAL Mode)
 › Author  : habNoir
 
-> habNoir
-
----
-
 ## ✧ Marimo ── v1.5.4 ✧
 › Maintenance & Patch Release / Session Protocol, Buffer Guards, & Downloader Subsystem
 
@@ -408,6 +404,54 @@ This release introduces the BMKG Realtime Earthquake plugin (`.gempa`, `.bmkg`, 
 ✧ Metadata ✧
 
 › Version : 1.6.2
+› Engine  : @rexxhayanasi/elaina-baileys
+› Storage : SQLite (WAL Mode)
+› Author  : habNoir
+
+> habNoir
+
+---
+
+## ✧ Marimo ── v1.6.3 ✧
+› Patch Release / BMKG Real-Time Alerts & Runtime Reliability
+
+This release expands the earthquake information command into a subscription-based alert system that checks BMKG for new events and notifies opted-in chats. It also hardens media processing and fixes persistence of the last reported earthquake state.
+
+✧ Detailed Technical Breakdown ✧
+
+[+] 1. BMKG Real-Time Earthquake Notifications (hab.js & plugins/tools/gempa.js)
+    › Added a background watcher that polls the official BMKG TEWS endpoint every 60 seconds after the WhatsApp connection is ready.
+    › Added `.gempa on`, `.gempa off`, and `.gempa status` to manage and inspect per-chat alert subscriptions; group changes require admin or owner permission.
+    › New events are broadcast to subscribed chats with earthquake details and the Shakemap image when available, with a text-only fallback.
+    › The initial poll records the current event without broadcasting it, preventing an alert burst when the watcher starts.
+
+[+] 2. Earthquake State Persistence Fix (utils/store.js)
+    › Corrected `setLastGempaState` to use the existing `setGempaState` prepared statement, allowing the latest event ID to be stored and duplicate alerts to be avoided.
+
+[+] 3. Safer FFmpeg Media Processing (utils/myfunction.js & utils/sticker.js)
+    › Replaced shell-command execution with `execFile` argument lists for audio conversion, video stream copying, and animated WebP sticker encoding.
+    › Resolve the FFmpeg binary from `FFMPEG_PATH`, `ffmpeg-static`, or the system `ffmpeg` executable.
+    › Standardized temporary media cleanup with forced removal.
+
+[+] 4. Media & CRM Reliability Updates
+    › Set the menu voice message's `ptt` flag explicitly so it is sent as a push-to-talk voice note.
+    › Improved CRM debug data handling with optional protobuf enum access and a guard for missing stored message data; unexpected failures can reach centralized error handling.
+    › Live Photo temporary files are now removed reliably, and video processing failures are allowed to surface instead of silently falling back to the original buffer.
+
+✧ File Modification Matrix (v1.6.2 vs v1.6.3) ✧
+
+› hab.js                       ➔ Added the periodic BMKG earthquake watcher and subscriber broadcasts.
+› ./plugins/tools/gempa.js     ➔ Added subscription management commands and status reporting.
+› ./utils/store.js             ➔ Fixed persistence of the latest earthquake state.
+› ./utils/myfunction.js        ➔ Switched FFmpeg operations to argument-safe `execFile` calls.
+› ./utils/sticker.js           ➔ Switched animated sticker encoding to `execFile` and improved temp-file cleanup.
+› ./plugins/general/menu.js    ➔ Explicitly marked the menu voice message as PTT.
+› ./plugins/owner/crm.js       ➔ Hardened protobuf and stored-message handling.
+› ./plugins/tools/livephoto.js ➔ Improved temporary-file cleanup and error propagation.
+
+✧ Metadata ✧
+
+› Version : 1.6.3
 › Engine  : @rexxhayanasi/elaina-baileys
 › Storage : SQLite (WAL Mode)
 › Author  : habNoir
