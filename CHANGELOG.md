@@ -382,7 +382,6 @@ This release introduces the BMKG Realtime Earthquake plugin (`.gempa`, `.bmkg`, 
     › Added `.gempa` / `.bmkg` / `.infogempa` command in `plugins/tools/gempa.js`.
     › Live BMKG API Parsing: Fetches JSON data from official TEWS endpoint (`https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json`).
     › Shakemap Infographic Rendering: Downloads and dispatches the corresponding map image (`Shakemap`) as a WhatsApp media stanza with detailed metrics (Date, Time, Magnitude, Depth, Epicenter Location, Tsunami Potential, and Felt Areas).
-    › Skill & Pattern Compliance: Fully compliant with `plugin-builder` (Guard/Validate/Notify/Work/Deliver lifecycle, no local try/catch, central error handling, English formatting).
 
 [+] 2. SQLite Gempa Subscriber & State Schema (utils/store.js)
     › Relational Gempa Schema: Created `gempa_subscribers` table (`chatJid`, `enabled`, `updatedAt`) and `gempa_state` table (`key`, `value`, `updatedAt`).

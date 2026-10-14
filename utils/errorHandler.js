@@ -10,7 +10,7 @@ const c = {
 
 // ─── ERROR REPORTER (CONSOLE + WHATSAPP CHAT) ─────────────────────────────────
 export async function handlePluginError(err, { m, command, usedPrefix }) {
-  // 1. Cetak rincian error lengkap ke terminal
+  // 1. Log formatted error details to terminal
   console.log(`\n${c.red}┌─ [-]  PLUGIN FAULT DETECTED ────────────────────────────────${c.reset}`)
   console.log(`${c.gray}│${c.reset}  Command ➜ ${c.yellow}${usedPrefix}${command}${c.reset}`)
   console.log(`${c.gray}│${c.reset}  Caller  ➜ ${c.yellow}${m.pushName || m.senderNumber}${c.reset} (${m.sender})`)
@@ -24,10 +24,10 @@ export async function handlePluginError(err, { m, command, usedPrefix }) {
   }
   console.log(`${c.red}└─────────────────────────────────────────────────────────────┘${c.reset}\n`)
 
-  // 2. Ambil baris file penyebab error (origin trace)
+  // 2. Extract origin file and line number trace
   const originLine = err?.stack ? err.stack.split('\n')[1]?.trim() : 'Unknown Origin'
 
-  // 3. Kirim rincian error langsung ke ruang chat WhatsApp
+  // 3. Dispatch structured error notice directly to WhatsApp chat
   try {
     await m.reply(
       `*Execution Fault Occurred*\n\n` +
@@ -42,14 +42,14 @@ export async function handlePluginError(err, { m, command, usedPrefix }) {
 // ─── AUTOMATED REACTION & EXECUTION LIFECYCLE ─────────────────────────────────
 export async function executePlugin(plugin, m, extra) {
   try {
-    // 1. Reaksi Awal: Wait (⌛)
+    // 1. Ingress reaction: Pending (⌛)
     if (m.react) {
       await m.react('⌛')
     }
 
     logger.running(`Executing Command [${extra.usedPrefix}${extra.command}] from ${m.pushName || m.senderNumber}`)
 
-    // 2. Eksekusi Plugin
+    // 2. Execute plugin entrypoint
     if (typeof plugin === 'function') {
       await plugin(m, extra)
     } else if (typeof plugin?.default === 'function') {
@@ -58,19 +58,19 @@ export async function executePlugin(plugin, m, extra) {
       throw new Error('Plugin entrypoint is not a valid callable function')
     }
 
-    // 3. Reaksi Sukses: Success (✔️)
+    // 3. Resolved reaction: Success (✔️)
     if (m.react) {
       await m.react('✔️')
     }
 
     logger.success(`Command [${extra.usedPrefix}${extra.command}] executed cleanly.`)
   } catch (err) {
-    // 4. Reaksi Gagal: Failed (✖️)
+    // 4. Rejected reaction: Failure (✖️)
     if (m.react) {
       await m.react('✖️')
     }
 
-    // 5. Laporkan ke console dan kirim pesan error ke chat
+    // 5. Log traceback to console and notify chat
     await handlePluginError(err, {
       m,
       command: extra.command,

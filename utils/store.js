@@ -500,7 +500,7 @@ export const store = {
   },
 
   setLastGempaState: (key, value) => {
-    stmts.setLastGempaState.run({
+    stmts.setGempaState.run({
       key,
       value: String(value),
       updatedAt: Date.now()

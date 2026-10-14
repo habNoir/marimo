@@ -26,11 +26,9 @@ const box = (title, rows) => {
 }
 
 function getPathSize(filePath) {
-  try {
-    if (fs.existsSync(filePath)) {
-      return formatSize(fs.statSync(filePath).size)
-    }
-  } catch {}
+  if (fs.existsSync(filePath)) {
+    return formatSize(fs.statSync(filePath).size)
+  }
   return '0 B'
 }
 

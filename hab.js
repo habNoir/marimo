@@ -103,15 +103,15 @@ async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneN
     msgRetryCounterCache: store.msgRetryCounterCache,
     maxMsgRetryCount: 5,
 
-    // Hubungkan getMessage ke database SQLite untuk retry decrypt otomatis
+    // Bind getMessage to SQLite store for automated decryption retries
     getMessage: async (key) => await store.loadMessage(key.remoteJid, key.id),
     cachedGroupMetadata: async (jid) => store.getGroupMetadata(jid)
   })
 
-  // Simpan kredensial ke SQLite
+  // Save credentials update to SQLite
   sock.ev.on('creds.update', saveCreds)
 
-  // Ikat seluruh event WhatsApp (Kontak, LID, Pesan, Grup) ke database SQLite
+  // Bind WhatsApp events (Contacts, LID, Messages, Groups) to SQLite store
   store.bind(sock.ev)
   crmstore.bind(sock)
 
@@ -147,6 +147,7 @@ async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneN
       logger.connected(botJid)
       logger.success(`habNoir Core ready with [${plugins.size}] mounted plugins.`)
       store.pruneSessionKeys().catch(() => {})
+      startGempaWatcher(sock)
     }
 
     if (connection === 'close') {
@@ -200,6 +201,69 @@ async function connectToWhatsApp(state, saveCreds, clearAuth, authMethod, phoneN
   return sock
 }
 
+// ─── REAL-TIME BMKG EARTHQUAKE WATCHER ────────────────────────────────────────
+let gempaWatcherInterval = null
+
+async function startGempaWatcher(sock) {
+  if (gempaWatcherInterval) return
+
+  const checkGempa = async () => {
+    try {
+      const subscribers = store.getGempaSubscribers()
+      if (!subscribers || subscribers.length === 0) return
+
+      const res = await fetch('https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json')
+      if (!res.ok) return
+      const data = await res.json()
+      const gempa = data?.Infogempa?.gempa
+      if (!gempa) return
+
+      const currentId = `${gempa.DateTime || gempa.Tanggal + '_' + gempa.Jam}`
+      const lastId = store.getLastGempaState('latest_earthquake_id')
+
+      // First run: cache latest earthquake to avoid initial broadcast spam
+      if (!lastId) {
+        store.setLastGempaState('latest_earthquake_id', currentId)
+        return
+      }
+
+      if (currentId === lastId) return
+
+      // New earthquake event detected
+      store.setLastGempaState('latest_earthquake_id', currentId)
+
+      const shakemapUrl = `https://data.bmkg.go.id/DataMKG/TEWS/${gempa.Shakemap}`
+      const imgRes = await fetch(shakemapUrl)
+      const imageBuffer = imgRes.ok ? Buffer.from(await imgRes.arrayBuffer()) : null
+
+      const caption =
+        `*⚠️ BMKG Real-Time Earthquake Alert*\n\n` +
+        `- Date & Time: ${gempa.Tanggal} at ${gempa.Jam}\n` +
+        `- Magnitude: ${gempa.Magnitude} SR\n` +
+        `- Depth: ${gempa.Kedalaman}\n` +
+        `- Coordinates: ${gempa.Coordinates} (${gempa.Lintang}, ${gempa.Bujur})\n` +
+        `- Epicenter: ${gempa.Wilayah}\n` +
+        `- Tsunami Potential: ${gempa.Potensi}\n` +
+        `- Felt Areas: ${gempa.Dirasakan || 'Not specified'}\n\n` +
+        `Source: BMKG Indonesia (Meteorology, Climatology, and Geophysical Agency)`
+
+      for (const targetJid of subscribers) {
+        try {
+          if (imageBuffer) {
+            await sock.sendMessage(targetJid, { image: imageBuffer, caption })
+          } else {
+            await sock.sendMessage(targetJid, { text: caption })
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  // Poll BMKG TEWS every 60 seconds
+  gempaWatcherInterval = setInterval(checkGempa, 60 * 1000)
+  checkGempa().catch(() => {})
+}
+
 // ─── INITIALIZATION ───────────────────────────────────────────────────────────
 async function main() {
   logger.banner()
@@ -208,11 +272,11 @@ async function main() {
   await loadPlugins()
   logger.success(`Plugin subsystem loaded. Total: ${plugins.size} plugins active.\n`)
 
-  // Bersihkan cache media view-once & signal pre-keys lama secara berkala
+  // Periodically prune view-once media cache and stale signal pre-keys
   setInterval(pruneViewOnceCache, 15 * 60 * 1000)
   setInterval(() => store.pruneSessionKeys().catch(() => {}), 60 * 60 * 1000)
 
-  // Ambil state autentikasi langsung dari database SQLite
+  // Retrieve authentication state directly from SQLite store
   const { state, saveCreds, clearAuth } = await store.getAuthState()
   await store.pruneSessionKeys().catch(() => {})
 

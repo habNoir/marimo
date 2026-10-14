@@ -1,6 +1,53 @@
+import store from '../../utils/store.js'
 import { fetchBuffer } from '../../utils/myfunction.js'
 
-const handler = async (m, { conn, command, usedPrefix }) => {
+const handler = async (m, { conn, args, command, usedPrefix }) => {
+  const subCmd = (args[0] || '').toLowerCase()
+
+  // ─── SUBSCRIBER NOTIFICATION CONTROLLER ────────────────────────────────────
+  if (['on', 'enable'].includes(subCmd)) {
+    if (m.isGroup && !m.isAdmin && !m.isOwner) {
+      return await m.reply(
+        `*Permission Required*\n\n` +
+        `You must be an administrator in this group to configure earthquake notifications.`
+      )
+    }
+
+    store.setGempaNotify(m.chat, true)
+    return await m.reply(
+      `*Earthquake Alerts Activated*\n\n` +
+      `Real-time BMKG earthquake notifications are now active for this chat.\n` +
+      `You will receive immediate warnings whenever new seismic activity is detected.`
+    )
+  }
+
+  if (['off', 'disable'].includes(subCmd)) {
+    if (m.isGroup && !m.isAdmin && !m.isOwner) {
+      return await m.reply(
+        `*Permission Required*\n\n` +
+        `You must be an administrator in this group to configure earthquake notifications.`
+      )
+    }
+
+    store.setGempaNotify(m.chat, false)
+    return await m.reply(
+      `*Earthquake Alerts Deactivated*\n\n` +
+      `Real-time BMKG earthquake notifications have been disabled for this chat.`
+    )
+  }
+
+  if (subCmd === 'status') {
+    const isEnabled = store.getGempaNotify(m.chat)
+    return await m.reply(
+      `*Earthquake Notification Status*\n\n` +
+      `- Chat ID : ${m.chat}\n` +
+      `- Alerts  : ${isEnabled ? 'Active (Subscribed)' : 'Inactive (Unsubscribed)'}\n\n` +
+      `To toggle notifications, use:\n` +
+      `${usedPrefix}${command} on\n` +
+      `${usedPrefix}${command} off`
+    )
+  }
+
   // 1. NOTIFY — mandatory waiting notice before fetching remote data
   await m.reply(
     `*Fetching Earthquake Info*\n\n` +
@@ -39,7 +86,7 @@ const handler = async (m, { conn, command, usedPrefix }) => {
   )
 }
 
-handler.help = ['gempa', 'bmkg', 'infogempa']
+handler.help = ['gempa', 'gempa <on|off|status>']
 handler.tags = ['tools']
 handler.command = ['gempa', 'bmkg', 'infogempa']
 

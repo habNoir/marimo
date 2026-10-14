@@ -5,21 +5,12 @@ import {
 } from '@rexxhayanasi/elaina-baileys'
 import fs from 'node:fs'
 import os from 'node:os'
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import ffmpegPath from 'ffmpeg-static'
 
-const execPromise = promisify(exec)
-
-// ─── RESOLVE FFMPEG BINARY ────────────────────────────────────────────────────
-let ffmpegCmd = 'ffmpeg'
-try {
-  const ffmpegModule = await import('ffmpeg-static')
-  if (ffmpegModule?.default) {
-    ffmpegCmd = `"${ffmpegModule.default}"`
-  }
-} catch {
-  ffmpegCmd = 'ffmpeg'
-}
+const execFilePromise = promisify(execFile)
+const FFMPEG_BIN = process.env.FFMPEG_PATH || ffmpegPath || 'ffmpeg'
 
 export function getConfig() {
   try {
@@ -87,7 +78,7 @@ import { downloadContentFromMessage } from '@rexxhayanasi/elaina-baileys'
 export async function downloadMedia(msgNode, mediaType = 'image') {
   if (!msgNode) throw new Error('No media node provided')
 
-  // Ekstrak node media terdalam jika masih terbungkus objek parent
+  // Extract deepest media node if still wrapped in parent object
   let target = msgNode
   let cleanType = mediaType.replace('Message', '')
 
@@ -108,7 +99,7 @@ export async function downloadMedia(msgNode, mediaType = 'image') {
     cleanType = 'document'
   }
 
-  // Validasi keberadaan directPath / url
+  // Validate presence of directPath or media URL
   if (!target.directPath && !target.url) {
     throw new Error('No valid directPath or media URL found in target media node')
   }
@@ -226,9 +217,18 @@ export async function convertToOpus(inputPath, outputPath) {
       fs.unlinkSync(outputPath)
     }
 
-    await execPromise(
-      `${ffmpegCmd} -y -i "${inputPath}" -vn -sn -dn -map_metadata -1 -c:a libopus -b:a 48k -ar 48000 -ac 1 -avoid_negative_ts make_zero "${outputPath}"`
-    )
+    await execFilePromise(FFMPEG_BIN, [
+      '-y',
+      '-i', inputPath,
+      '-vn', '-sn', '-dn',
+      '-map_metadata', '-1',
+      '-c:a', 'libopus',
+      '-b:a', '48k',
+      '-ar', '48000',
+      '-ac', '1',
+      '-avoid_negative_ts', 'make_zero',
+      outputPath
+    ])
     return outputPath
   } catch (err) {
     console.error('FFmpeg PTT Conversion Error:', err.message)
@@ -238,7 +238,7 @@ export async function convertToOpus(inputPath, outputPath) {
 
 export async function getAudioDuration(filePath) {
   try {
-    const { stderr } = await execPromise(`${ffmpegCmd} -i "${filePath}"`).catch((e) => e)
+    const { stderr } = await execFilePromise(FFMPEG_BIN, ['-i', filePath]).catch((e) => e)
     const match = (stderr || '').match(/Duration:\s*(\d+):(\d+):(\d+(\.\d+)?)/i)
     if (match) {
       const hours = parseInt(match[1], 10)
@@ -256,9 +256,7 @@ export async function convertToGifVideo(inputPath, outputPath) {
       fs.unlinkSync(outputPath)
     }
 
-    await execPromise(
-      `${ffmpegCmd} -y -i "${inputPath}" -c:v copy -an "${outputPath}"`
-    )
+    await execFilePromise(FFMPEG_BIN, ['-y', '-i', inputPath, '-c:v', 'copy', '-an', outputPath])
     return outputPath
   } catch (err) {
     console.error('FFmpeg Video Stream Copy Error:', err.message)

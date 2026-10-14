@@ -8,8 +8,8 @@ const VIEWONCE_MEDIA_TYPES = ['imageMessage', 'videoMessage', 'audioMessage']
 const BOT_START_TIME = Date.now()
 
 // ─── CACHE VIEW-ONCE MEDIA ON ARRIVAL ─────────────────────────────────────────
-// WA menghapus akses ke media view-once begitu dibuka penerima, jadi kita
-// unduh & simpan buffernya di memori saat pesan baru masuk.
+// WhatsApp revokes access to view-once media once opened by recipients,
+// so we download and cache its buffer in memory immediately on message ingress.
 async function cacheIncomingViewOnce(m) {
   const type = m.type
   if (!VIEWONCE_MEDIA_TYPES.includes(type)) return
@@ -47,9 +47,9 @@ export async function handleMessages(sock, rawM, plugins) {
   const msgTimestamp = Number(rawM.messageTimestamp || 0) * 1000
   if (msgTimestamp > 0) {
     const now = Date.now()
-    // Skip pesan yang dikirim sebelum bot aktif (offline history sync)
+    // Ignore messages sent prior to bot startup (offline history synchronization)
     if (msgTimestamp < BOT_START_TIME - 15000) return
-    // Skip pesan buffered yang tertunda lebih dari 60 detik
+    // Ignore buffered messages delayed for more than 60 seconds
     if (now - msgTimestamp > 60000) return
   }
 

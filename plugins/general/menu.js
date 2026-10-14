@@ -106,7 +106,7 @@ const handler = async (m, { conn, args, usedPrefix, plugins }) => {
 
   const mediaDir = './media'
 
-  // 1. Muat buffer video ke RAM jika belum ada
+  // 1. Load video buffer into RAM if not already cached
   if (!cachedVideoBuffer) {
     const targetVideo = [
       path.join(mediaDir, 'menu_gif.mp4'),
@@ -118,7 +118,7 @@ const handler = async (m, { conn, args, usedPrefix, plugins }) => {
     }
   }
 
-  // 2. Muat buffer audio ke RAM jika belum ada
+  // 2. Load audio buffer into RAM if not already cached
   if (!cachedAudioBuffer) {
     const targetAudio = [
       path.join(mediaDir, 'menu_voice.ogg'),
@@ -131,7 +131,7 @@ const handler = async (m, { conn, args, usedPrefix, plugins }) => {
     }
   }
 
-  // ─── KIRIM VIDEO INSTAN VIA PRE-UPLOAD CACHE ──────────────────────────────
+  // ─── DISPATCH INSTANT VIDEO VIA PRE-UPLOADED CDN CACHE ─────────────────────
   if (cachedVideoBuffer) {
     if (!preUploadedVideo) {
       const media = await prepareWAMessageMedia(
@@ -166,7 +166,7 @@ const handler = async (m, { conn, args, usedPrefix, plugins }) => {
     await m.reply(caption)
   }
 
-  // ─── KIRIM AUDIO PTT INSTAN VIA PRE-UPLOAD CACHE ──────────────────────────
+  // ─── DISPATCH INSTANT AUDIO PTT VIA PRE-UPLOADED CDN CACHE ─────────────────
   if (cachedAudioBuffer) {
     if (!preUploadedAudio) {
       const media = await prepareWAMessageMedia(
@@ -185,6 +185,7 @@ const handler = async (m, { conn, args, usedPrefix, plugins }) => {
       {
         audioMessage: {
           ...preUploadedAudio,
+          ptt: true,
           seconds: cachedAudioDuration || preUploadedAudio.seconds || 0
         }
       },

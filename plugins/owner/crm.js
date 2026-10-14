@@ -14,26 +14,18 @@ const SECRET_CONTEXT = {
 
 function loadBestNode(crmstore, messageId, chatId, msg) {
   if (!crmstore || !messageId) return null
-  let node = null
-  try {
-    node = crmstore.loadNode(messageId, chatId)
-  } catch {}
-
+  let node = crmstore.loadNode(messageId, chatId)
   if (node) return node
 
   const alternativeChats = [chatId, msg?.key?.remoteJid, msg?.key?.participant].filter(Boolean)
   for (const jid of [...new Set(alternativeChats)]) {
     if (jid === chatId) continue
-    try {
-      node = crmstore.loadNode(messageId, jid)
-    } catch {}
+    node = crmstore.loadNode(messageId, jid)
     if (node) return node
   }
 
-  try {
-    const raw = crmstore.loadNode(messageId)
-    if (raw) return raw
-  } catch {}
+  const raw = crmstore.loadNode(messageId)
+  if (raw) return raw
 
   return null
 }
@@ -83,11 +75,7 @@ function decryptSecretEnvelope(msg, crmstore, chat) {
 
 function secretEncTypeName(value) {
   if (typeof value === 'string') return value
-  try {
-    return proto.Message.SecretEncryptedMessage.SecretEncType[value] ?? value
-  } catch {
-    return value
-  }
+  return proto.Message?.SecretEncryptedMessage?.SecretEncType?.[value] ?? value
 }
 
 function getSecretContext(type) {
@@ -290,10 +278,8 @@ function formatLastChat(rows) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    let message = null
-    try {
-      message = proto.WebMessageInfo.toObject(proto.WebMessageInfo.decode(row.data), { enums: Number, longs: Number, bytes: String, defaults: false })
-    } catch {}
+    const decoded = row?.data ? proto.WebMessageInfo.decode(row.data) : null
+    const message = decoded ? proto.WebMessageInfo.toObject(decoded, { enums: Number, longs: Number, bytes: String, defaults: false }) : null
 
     const type = Object.keys(message?.message || {})[0] || '-'
     const sender = row.sender ? row.sender.split('@')[0] : 'Unknown'

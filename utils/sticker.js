@@ -2,24 +2,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import crypto from 'node:crypto'
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import sharp from 'sharp'
 import webp from 'node-webpmux'
+import ffmpegPath from 'ffmpeg-static'
 import { getConfig } from './myfunction.js'
 
-const execPromise = promisify(exec)
-
-// ─── RESOLVE FFMPEG BINARY PATH ──────────────────────────────────────────────
-let ffmpegCmd = 'ffmpeg'
-try {
-  const ffmpegModule = await import('ffmpeg-static')
-  if (ffmpegModule?.default) {
-    ffmpegCmd = `"${ffmpegModule.default}"`
-  }
-} catch {
-  ffmpegCmd = 'ffmpeg'
-}
+const execFileAsync = promisify(execFile)
+const FFMPEG_BIN = process.env.FFMPEG_PATH || ffmpegPath || 'ffmpeg'
 
 /**
  * Converts static images to sharp 512x512 WebP via Sharp
@@ -46,28 +37,38 @@ export async function videoToWebp(mediaBuffer) {
   fs.writeFileSync(tmpIn, mediaBuffer)
 
   try {
-    // Batas aman pesan stiker WhatsApp (950 KB dari batas 1 MB)
+    // Safe WhatsApp sticker size threshold (950 KB out of 1 MB limit)
     const MAX_ALLOWED_BYTES = 950 * 1024
 
-    // Helper eksekusi: FPS rata 15, skala penuh 512x512 dengan Lanczos tajam
+    // Execution helper: Flat 15 FPS, full 512x512 scale with crisp Lanczos filter
     const runEncode = async (quality) => {
-      const videoFilter = `scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,fps=15,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000`
-      await execPromise(
-        `${ffmpegCmd} -y -i "${tmpIn}" -vf "${videoFilter}" -c:v libwebp -lossless 0 -compression_level 4 -q:v ${quality} -loop 0 -preset default -an -vsync 0 "${tmpOut}"`
-      )
+      const videoFilter = 'scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,fps=15,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000'
+      await execFileAsync(FFMPEG_BIN, [
+        '-y',
+        '-i', tmpIn,
+        '-vf', videoFilter,
+        '-c:v', 'libwebp',
+        '-lossless', '0',
+        '-compression_level', '4',
+        '-q:v', String(quality),
+        '-loop', '0',
+        '-preset', 'default',
+        '-an',
+        '-vsync', '0',
+        tmpOut
+      ])
       return fs.statSync(tmpOut).size
     }
 
-    // ─── PASS 1: KUALITAS JERNIH & TAJAM (q:v 52, 15 FPS) ────────────────────
+    // ─── PASS 1: CRISP FIDELITY (q:v 52, 15 FPS) ─────────────────────────────
     let currentSize = await runEncode(52)
 
-    // ─── PASS 2: PENYESUAIAN LEMBUT HANYA JIKA MELEBIHI 950 KB ───────────────
-    // Jika video sangat panjang/padat dan tembus 950 KB, turunkan q:v secukupnya (tetap tajam)
+    // ─── PASS 2: ADAPTIVE REDUCTION IF EXCEEDING 950 KB ──────────────────────
     if (currentSize > MAX_ALLOWED_BYTES) {
       currentSize = await runEncode(42)
     }
 
-    // ─── PASS 3: BATAS MINIMAL AMAN (TIDAK PERNAH DI BAWAH 35) ───────────────
+    // ─── PASS 3: SAFE LOWER BOUND (NEVER BELOW 35) ───────────────────────────
     if (currentSize > MAX_ALLOWED_BYTES) {
       currentSize = await runEncode(35)
     }
@@ -76,8 +77,8 @@ export async function videoToWebp(mediaBuffer) {
   } catch (err) {
     throw new Error(`Crisp animated sticker conversion failed: ${err.message}`)
   } finally {
-    if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn)
-    if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut)
+    fs.rmSync(tmpIn, { force: true })
+    fs.rmSync(tmpOut, { force: true })
   }
 }
 

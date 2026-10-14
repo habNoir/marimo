@@ -31,16 +31,9 @@ async function optimizeVideoForLivePhoto(videoBuffer) {
       tmpOut
     ])
     return fs.readFileSync(tmpOut)
-  } catch {
-    // Fallback to original buffer if re-encoding fails
-    return videoBuffer
   } finally {
-    if (fs.existsSync(tmpIn)) {
-      try { fs.unlinkSync(tmpIn) } catch {}
-    }
-    if (fs.existsSync(tmpOut)) {
-      try { fs.unlinkSync(tmpOut) } catch {}
-    }
+    fs.rmSync(tmpIn, { force: true })
+    fs.rmSync(tmpOut, { force: true })
   }
 }
 
@@ -53,12 +46,8 @@ async function extractFirstFrame(videoBuffer) {
     await execFileAsync(FFMPEG_BIN, ['-y', '-i', tmpVideo, '-vframes', '1', '-q:v', '2', tmpThumb])
     return fs.readFileSync(tmpThumb)
   } finally {
-    if (fs.existsSync(tmpVideo)) {
-      try { fs.unlinkSync(tmpVideo) } catch {}
-    }
-    if (fs.existsSync(tmpThumb)) {
-      try { fs.unlinkSync(tmpThumb) } catch {}
-    }
+    fs.rmSync(tmpVideo, { force: true })
+    fs.rmSync(tmpThumb, { force: true })
   }
 }
 
